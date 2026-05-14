@@ -82,6 +82,17 @@ const create = async ({ name, username, password, role_id }) => {
     throw { status: 400, message: 'Faltan campos requeridos' };
   }
 
+   // Validación de longitud y complejidad mínima
+  if (password.length < 8) {
+    throw { status: 400, message: 'La contraseña debe tener al menos 8 caracteres' };
+  }
+  if (username.length < 3) {
+    throw { status: 400, message: 'El usuario debe tener al menos 3 caracteres' };
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    throw { status: 400, message: 'Usuario solo puede contener letras, números y guion bajo' };
+  }
+  
   const passwordHash = await bcrypt.hash(password, 12);
 
   const result = repo.create({

@@ -68,6 +68,10 @@ const login = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
+    // Revocar el token actual — logout real
+    const { logout: logoutService } = require('./service');
+    logoutService(req.token);
+
     await logAudit({
       userId: req.user.id,
       action: 'LOGOUT',
