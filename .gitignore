@@ -1,0 +1,77 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+storage/logs/
+*.pid
+
+# =========================
+# Environment
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Database
+# =========================
+*.sqlite
+*.sqlite3
+*.db
+database/*.db
+storage/database/
+storage/backups/
+
+# =========================
+# Uploads / Files
+# =========================
+storage/uploads/
+uploads/
+tmp/
+temp/
+
+# =========================
+# Coverage / Testing
+# =========================
+coverage/
+.nyc_output/
+
+# =========================
+# Build / Cache
+# =========================
+dist/
+build/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Editors
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# Runtime
+# =========================
+pids/
+*.pid.lock
+
+# =========================
+# Optional REPL
+# =========================
+.node_repl_history
