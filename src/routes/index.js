@@ -230,6 +230,8 @@ router.use(
   require('../modules/audit/routes')
 );
 
+router.use('/clients',  require('../modules/clients/routes'));
+router.use('/settings', require('../modules/settings/routes'));
 /**
  * ============================================================
  * Cómo agregar un nuevo módulo
