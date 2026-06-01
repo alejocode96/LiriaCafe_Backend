@@ -1,0 +1,469 @@
+// prisma/schema.prisma
+//
+// DECISIONES DE DISEÑO:
+// 1. Toda entidad tiene createdAt, updatedAt (automáticos) y estado (ACTIVO/INACTIVO)
+// 2. Las relaciones mantienen el historial completo (nunca se elimina)
+// 3. Los campos de auditoría (creadoPor, modificadoPor) son FKs a usuarios
+// 4. Los enums garantizan integridad de datos en la BD
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "sqlite"
+    url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// SQLite no soporta enums nativos, Prisma los simula con String
+// Al migrar a PostgreSQL, se convierten automáticamente en ENUM reales
+// ============================================================
+
+// ============================================================
+// MÓDULO: ROLES Y PERMISOS
+// ============================================================
+
+model Rol {
+    id          String   @id @default(cuid())
+    nombre      String   @unique
+    descripcion String?
+    estado      String   @default("ACTIVO") // ACTIVO | INACTIVO
+    esAdmin     Boolean  @default(false) // El rol admin no puede modificarse
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relaciones
+    permisos Permiso[]
+    usuarios Usuario[]
+
+    @@map("roles")
+}
+
+model Permiso {
+    id        String  @id @default(cuid())
+    modulo    String // USUARIOS, ROLES, PRODUCTOS, etc.
+    accion    String // CREAR, VER, EDITAR, DESACTIVAR, REPORTES
+    permitido Boolean @default(false)
+
+    rolId String
+    rol   Rol    @relation(fields: [rolId], references: [id])
+
+    @@unique([rolId, modulo, accion])
+    @@map("permisos")
+}
+
+// ============================================================
+// MÓDULO: USUARIOS Y AUTENTICACIÓN
+// ============================================================
+
+model Usuario {
+    id                  String    @id @default(cuid())
+    nombreCompleto      String
+    nombreUsuario       String    @unique
+    correo              String    @unique
+    passwordHash        String
+    estado              String    @default("ACTIVO") // ACTIVO | INACTIVO
+    requiereCambioClave Boolean   @default(true)
+    ultimoAcceso        DateTime?
+
+    // Bloqueo por intentos fallidos (requerimiento 2.1.3)
+    intentosFallidos    Int       @default(0)
+    bloqueosTemporales  Int       @default(0)
+    bloqueadoHasta      DateTime?
+    bloqueadoPermanente Boolean   @default(false)
+
+    // Historial de contraseñas (no puede repetir las últimas 3)
+    historialContrasenas HistorialContrasena[]
+
+    // Tokens de restablecimiento de contraseña
+    tokensRestablecimiento TokenRestablecimiento[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Auditoría de creación/modificación
+    creadoPorId     String?
+    modificadoPorId String?
+
+    // Relaciones
+    rolId String
+    rol   Rol    @relation(fields: [rolId], references: [id])
+
+    // Operaciones realizadas por este usuario
+    ventasRealizadas   Venta[]             @relation("VentasCajero")
+    cajasAbiertas      Caja[]              @relation("CajasAbiertas")
+    cajasEscaneo       Caja[]              @relation("CajasCerradas")
+    movimientosCaja    MovimientoCaja[]
+    entradasInventario EntradaInventario[]
+    auditoria          LogAuditoria[]
+
+    @@map("usuarios")
+}
+
+model HistorialContrasena {
+    id           String   @id @default(cuid())
+    passwordHash String
+    createdAt    DateTime @default(now())
+
+    usuarioId String
+    usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+    @@map("historial_contrasenas")
+}
+
+model TokenRestablecimiento {
+    id        String   @id @default(cuid())
+    token     String   @unique
+    usado     Boolean  @default(false)
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+    ip        String?
+
+    usuarioId String
+    usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+    @@map("tokens_restablecimiento")
+}
+
+// ============================================================
+// MÓDULO: CATEGORÍAS
+// ============================================================
+
+model Categoria {
+    id          String   @id @default(cuid())
+    nombre      String   @unique
+    descripcion String?
+    imagenUrl   String?
+    orden       Int      @default(0)
+    estado      String   @default("ACTIVO")
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    creadoPorId String?
+
+    // Relaciones
+    productos Producto[]
+
+    @@map("categorias")
+}
+
+// ============================================================
+// MÓDULO: INVENTARIO
+// ============================================================
+
+model ItemInventario {
+    id                String   @id @default(cuid())
+    nombre            String   @unique
+    unidadMedida      String // litro, kilogramo, gramo, unidad, etc.
+    stockActual       Float    @default(0)
+    stockMinimo       Float    @default(0)
+    costoPromedio     Float    @default(0) // Promedio ponderado — calculado automáticamente
+    proveedorHabitual String?
+    descripcion       String?
+    estado            String   @default("ACTIVO")
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+    creadoPorId       String?
+
+    // Relaciones
+    entradas        EntradaInventario[]
+    movimientos     MovimientoInventario[]
+    insumosProducto InsumoProducto[]
+    insumosVariante InsumoVariante[]
+
+    @@map("items_inventario")
+}
+
+model EntradaInventario {
+    id             String   @id @default(cuid())
+    cantidad       Float
+    precioUnitario Float // Precio de compra de esa entrada
+    precioTotal    Float // cantidad * precioUnitario
+    proveedor      String?
+    facturaRef     String? // Número de factura o referencia de compra
+    notas          String?
+    fecha          DateTime @default(now())
+    createdAt      DateTime @default(now())
+
+    itemId String
+    item   ItemInventario @relation(fields: [itemId], references: [id])
+
+    usuarioId String
+    usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+    // Vinculación opcional con movimiento de flujo de caja (compra de inventario)
+    movimientoCajaId String? @unique
+
+    @@map("entradas_inventario")
+}
+
+// Kardex: cada movimiento de entrada/salida del ítem
+model MovimientoInventario {
+    id           String   @id @default(cuid())
+    tipo         String // ENTRADA | CONSUMO | AJUSTE_POSITIVO | AJUSTE_NEGATIVO | DEVOLUCION
+    cantidad     Float
+    stockAntes   Float
+    stockDespues Float
+    motivo       String? // Requerido para ajustes
+    referencia   String? // ID de venta, entrada, etc.
+    createdAt    DateTime @default(now())
+
+    itemId String
+    item   ItemInventario @relation(fields: [itemId], references: [id])
+
+    @@map("movimientos_inventario")
+}
+
+// ============================================================
+// MÓDULO: PRODUCTOS Y VARIANTES
+// ============================================================
+
+model Producto {
+    id             String   @id @default(cuid())
+    nombre         String
+    descripcion    String?
+    precioBase     Float
+    imagenUrl      String?
+    tieneVariantes Boolean  @default(false)
+    disponible     Boolean  @default(true)
+    estado         String   @default("ACTIVO")
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+    creadoPorId    String?
+
+    categoriaId String
+    categoria   Categoria @relation(fields: [categoriaId], references: [id])
+
+    // Relaciones
+    insumosBase InsumoProducto[] // Fórmula de insumos base
+    variantes   Variante[]
+    itemsVenta  ItemVenta[]
+
+    @@map("productos")
+}
+
+// Fórmula de consumo de insumos base del producto
+model InsumoProducto {
+    id       String @id @default(cuid())
+    cantidad Float // Cantidad que se consume por unidad vendida
+
+    productoId String
+    producto   Producto @relation(fields: [productoId], references: [id])
+
+    itemInventarioId String
+    itemInventario   ItemInventario @relation(fields: [itemInventarioId], references: [id])
+
+    @@unique([productoId, itemInventarioId])
+    @@map("insumos_producto")
+}
+
+model Variante {
+    id                String   @id @default(cuid())
+    nombre            String // Mora, Fresa, Grande, Pequeño...
+    precioDiferencial Float    @default(0) // Diferencia respecto al precio base
+    disponible        Boolean  @default(true)
+    estado            String   @default("ACTIVO")
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+
+    productoId String
+    producto   Producto @relation(fields: [productoId], references: [id])
+
+    // Insumos adicionales específicos de esta variante
+    insumosAdicionales InsumoVariante[]
+    itemsVenta         ItemVenta[]
+
+    @@unique([productoId, nombre])
+    @@map("variantes")
+}
+
+model InsumoVariante {
+    id       String @id @default(cuid())
+    cantidad Float
+
+    varianteId String
+    variante   Variante @relation(fields: [varianteId], references: [id])
+
+    itemInventarioId String
+    itemInventario   ItemInventario @relation(fields: [itemInventarioId], references: [id])
+
+    @@unique([varianteId, itemInventarioId])
+    @@map("insumos_variante")
+}
+
+// ============================================================
+// MÓDULO: CAJA
+// ============================================================
+
+model Caja {
+    id            String    @id @default(cuid())
+    montoInicial  Float // Base de caja al abrir
+    estado        String    @default("ABIERTA") // ABIERTA | CERRADA
+    fechaApertura DateTime  @default(now())
+    fechaCierre   DateTime?
+
+    // Cierre
+    conteoFisicoEfectivo Float?
+    conteoTransferencias Float?
+    saldoEsperado        Float?
+    diferencia           Float? // Sobrante (+) o Faltante (-)
+    notasCierre          String?
+
+    // Auditoría
+    abiertaPorId String
+    abiertaPor   Usuario @relation("CajasAbiertas", fields: [abiertaPorId], references: [id])
+
+    cerradaPorId String?
+    cerradaPor   Usuario? @relation("CajasCerradas", fields: [cerradaPorId], references: [id])
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relaciones
+    ventas      Venta[]
+    movimientos MovimientoCaja[]
+
+    @@map("cajas")
+}
+
+// ============================================================
+// MÓDULO: VENTAS Y FACTURACIÓN
+// ============================================================
+
+model Venta {
+    id                 String  @id @default(cuid())
+    numero             Int     @unique // Consecutivo irrepetible
+    subtotal           Float
+    descuentoTotal     Float   @default(0)
+    impuestos          Float   @default(0)
+    total              Float
+    metodoPago         String // EFECTIVO | TRANSFERENCIA | COMBINADO
+    montoEfectivo      Float? // Si el pago es en efectivo o combinado
+    montoTransferencia Float?
+    cambio             Float? // Cambio devuelto al cliente
+    estado             String  @default("COMPLETADA") // COMPLETADA | ANULADA
+    motivoAnulacion    String? // Obligatorio si está anulada
+
+    // Datos del cliente (opcionales, para facturación formal)
+    clienteNombre String?
+    clienteNit    String?
+
+    fechaVenta DateTime @default(now())
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    cajaId String
+    caja   Caja   @relation(fields: [cajaId], references: [id])
+
+    cajeroId String
+    cajero   Usuario @relation("VentasCajero", fields: [cajeroId], references: [id])
+
+    // Relaciones
+    items ItemVenta[]
+
+    @@map("ventas")
+}
+
+model ItemVenta {
+    id             String @id @default(cuid())
+    cantidad       Int
+    precioUnitario Float // Precio al momento de la venta (congelado)
+    descuento      Float  @default(0)
+    subtotal       Float // (precioUnitario * cantidad) - descuento
+
+    // Snapshot del costo del insumo en el momento de la venta
+    // Esto permite calcular rentabilidad histórica correctamente
+    costoUnitarioSnapshot Float @default(0)
+
+    ventaId String
+    venta   Venta  @relation(fields: [ventaId], references: [id])
+
+    productoId String
+    producto   Producto @relation(fields: [productoId], references: [id])
+
+    varianteId String?
+    variante   Variante? @relation(fields: [varianteId], references: [id])
+
+    @@map("items_venta")
+}
+
+// ============================================================
+// MÓDULO: FLUJO DE CAJA
+// ============================================================
+
+model CategoriaMovimiento {
+    id          String   @id @default(cuid())
+    nombre      String   @unique
+    descripcion String?
+    estado      String   @default("ACTIVO")
+    createdAt   DateTime @default(now())
+
+    movimientos MovimientoCaja[]
+
+    @@map("categorias_movimiento")
+}
+
+model MovimientoCaja {
+    id         String  @id @default(cuid())
+    tipo       String // INGRESO | EGRESO | COMPRA_INVENTARIO
+    monto      Float
+    concepto   String
+    medioPago  String // EFECTIVO | TRANSFERENCIA
+    soporteUrl String? // Foto del comprobante (opcional)
+    notas      String?
+
+    // ¿Afecta el saldo de la caja activa?
+    afectaCaja Boolean @default(true)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    cajaId String
+    caja   Caja   @relation(fields: [cajaId], references: [id])
+
+    usuarioId String
+    usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+    categoriaId String?
+    categoria   CategoriaMovimiento? @relation(fields: [categoriaId], references: [id])
+
+    // Si es COMPRA_INVENTARIO, tiene referencia a la entrada
+    entradaInventarioId String? @unique
+
+    @@map("movimientos_caja")
+}
+
+// ============================================================
+// MÓDULO: AUDITORÍA (Solo lectura — nadie puede modificar)
+// ============================================================
+
+model LogAuditoria {
+    id        String   @id @default(cuid())
+    accion    String // LOGIN, LOGOUT, CREAR_USUARIO, ANULAR_VENTA, etc.
+    entidad   String? // Nombre de la entidad afectada (Usuario, Venta, etc.)
+    entidadId String? // ID del registro afectado
+    detalle   String? // JSON con cambios antes/después
+    ip        String?
+    userAgent String?
+    createdAt DateTime @default(now())
+
+    usuarioId String?
+    usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+
+    @@map("log_auditoria")
+}
+
+// ============================================================
+// CONFIGURACIÓN DEL NEGOCIO
+// ============================================================
+
+model ConfiguracionNegocio {
+    id          String   @id @default(cuid())
+    clave       String   @unique
+    valor       String
+    descripcion String?
+    updatedAt   DateTime @updatedAt
+
+    @@map("configuracion_negocio")
+}

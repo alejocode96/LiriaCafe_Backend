@@ -1,0 +1,37 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno (NUNCA al repositorio)
+.env
+.env.local
+.env.production
+
+# Base de datos SQLite local
+*.db
+*.db-journal
+
+# Logs
+logs/
+*.log
+
+# Archivos de build
+dist/
+build/
+
+# Prisma
+prisma/migrations/
+
+# Uploads de usuarios
+uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage de tests
+coverage/
