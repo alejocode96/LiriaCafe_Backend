@@ -40,11 +40,9 @@ import { is } from 'zod/v4/locales';
  * 
  */
 export const registrarAdmin = async ({ nombreCompleto, nombreUsuario, correo, contrasena }) => {
-  
-  // 1. Verificar que no existe ningún rol administrador aún
-  // Importamos prisma directamente aquí arriba del archivo, no dentro de la función
-  const cualquierAdmin = await authRepository.buscarRolAdmin();
 
+  // 1. Verificar que no existe ningún rol administrador aún
+  const cualquierAdmin = await authRepository.buscarRolAdmin();
   if (cualquierAdmin) {
     throw new ConflictError(
       'Ya existe un administrador en el sistema. El registro inicial solo puede realizarse una vez.'
@@ -54,16 +52,25 @@ export const registrarAdmin = async ({ nombreCompleto, nombreUsuario, correo, co
   // 2. Verificar disponibilidad de correo y nombre de usuario
   const usuarioExistente = await authRepository.existeUsuario(correo, nombreUsuario);
   if (usuarioExistente) {
-    const campo = usuarioExistente.correo === correo ? 'correo electrónico' : 'nombre de usuario';
+    const campo = usuarioExistente.correo === correo
+      ? 'correo electrónico'
+      : 'nombre de usuario';
     throw new ConflictError(`El ${campo} ya está en uso.`);
   }
 
   // 3. Validar política de contraseña
+  // CORRECCIÓN: pasamos el array de errores detallados al ValidationError
   const politica = validatePasswordPolicy(contrasena);
   if (!politica.valid) {
     throw new ValidationError(
       'La contraseña no cumple con la política de seguridad.',
-      politica.errors
+      // Convertimos el array de strings a formato {campo, mensaje}
+      // para que el frontend pueda mostrar cada regla fallida
+      politica.errors.map((msg) => ({
+        campo: 'contrasena',
+        mensaje: msg,
+        codigo: 'password_policy',
+      }))
     );
   }
 
