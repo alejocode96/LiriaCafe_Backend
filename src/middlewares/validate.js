@@ -16,35 +16,37 @@
 // Porque lo vamos a usar en TODOS los módulos. Un solo middleware,
 // N schemas diferentes. Principio DRY (Don't Repeat Yourself).
 
-import { ValidationError } from "../utils/errors";
+import { ValidationError } from '../utils/errors.js';
 
 /**
- *  Genera un middleware que valida el req.body con un schema zod
- * @param {import('zod').ZodSchema} schema - schema Zod para validar
- * @param {'body'|'query'|'params'} source - Fuente de datos a validar  (default: 'body')
- * @returns {Function} middleware de Express
+ * Genera un middleware que valida el req.body con un schema Zod.
+ *
+ * @param {import('zod').ZodSchema} schema - Schema Zod para validar
+ * @param {'body'|'query'|'params'} source - Fuente de datos a validar (default: 'body')
+ * @returns {Function} Middleware de Express
  */
-export const validate =(schema, source='body')=>{
-    return(req,res,next)=>{
-        //safeParse de zod devulve {success, data, error} en lugar  de lanzar 
-        const result = schema.safeParse(req[source]);
+export const validate = (schema, source = 'body') => {
+  return (req, res, next) => {
+    // safeParse de Zod devuelve { success, data, error } en lugar de lanzar
+    const result = schema.safeParse(req[source]);
 
-        if(!result.success){
-            //Transformamos los errores de zod a un formato legible
-            const errors = result.error.errors.map((err)=>({
-                campo: err.path.join('.'), // 'correo, 'contrasena.longitud', etc.
-                mesaje: err.message,
-                codigo: err.code,
-            }));
+    if (!result.success) {
+      // Transformamos los errores de Zod a un formato legible
+      const errors = result.error.issues.map((err) => ({
+        campo: err.path.join('.'),      // 'correo', 'contrasena.longitud', etc.
+        mensaje: err.message,
+        codigo: err.code,
+      }));
 
-            return next(
-                new ValidationError('Los datos enviados no son válidos.', errors)
-            );
-        }
-         //Remplazamos req.body con los datos parseados y transformados por zod
-         //Esto limpia y transforma los datos (ej: trimear strings, convertir  tipos)
-         req[source]=result.data;
+      return next(
+        new ValidationError('Los datos enviados no son válidos.', errors)
+      );
+    }
 
-         next()
-    };
+    // Reemplazamos req.body con los datos parseados y transformados por Zod
+    // Esto limpia y transforma los datos (ej: trimear strings, convertir tipos)
+    req[source] = result.data;
+
+    next();
+  };
 };

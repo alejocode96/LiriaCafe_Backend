@@ -39,59 +39,58 @@ import { is } from 'zod/v4/locales';
  * Solo puede ejecutarse UNA VEZ - Si ya existe un damin, falla.
  * 
  */
-export const registrarAdmin = async({nombreCompleto, nombreUsuario, correo, contrasena})=>{
-    //1. Verificar que no existe ningún usuario administrador
-    const adminExistente= await authRepository.findUsuarioByIdentificador('admin');
+export const registrarAdmin = async ({ nombreCompleto, nombreUsuario, correo, contrasena }) => {
+  
+  // 1. Verificar que no existe ningún rol administrador aún
+  // Importamos prisma directamente aquí arriba del archivo, no dentro de la función
+  const cualquierAdmin = await authRepository.buscarRolAdmin();
 
-    //Búsqueda más robusta: cualquier usuario con rol esAdmin
-    const {prima} = await import('../../config/database.js');
-    const cualquierAdmin = await prisma.rol.findFirst({where:{esAdmin: true}});
+  if (cualquierAdmin) {
+    throw new ConflictError(
+      'Ya existe un administrador en el sistema. El registro inicial solo puede realizarse una vez.'
+    );
+  }
 
-    if(cualquierAdmin){
-        throw  new ConflictError(
-            'Ya existe un administrador en el sistema. El registro inicial solo puede realizarse una vez.'
-        );
-    }
+  // 2. Verificar disponibilidad de correo y nombre de usuario
+  const usuarioExistente = await authRepository.existeUsuario(correo, nombreUsuario);
+  if (usuarioExistente) {
+    const campo = usuarioExistente.correo === correo ? 'correo electrónico' : 'nombre de usuario';
+    throw new ConflictError(`El ${campo} ya está en uso.`);
+  }
 
-    //2. Verificar disponibilidad de correo y nombre de usuario
-    const usuarioExistente= await authRepository.existeUsuario(correo, nombreUsuario);
-    if(usuarioExistente){
-        const campo = usuarioExistente.correo === correo ? 'correo electronico':  'nombre de usuario';
-        throw new ConflictError(`El ${campo} ya está en uso.`);
-    }
+  // 3. Validar política de contraseña
+  const politica = validatePasswordPolicy(contrasena);
+  if (!politica.valid) {
+    throw new ValidationError(
+      'La contraseña no cumple con la política de seguridad.',
+      politica.errors
+    );
+  }
 
-    //3.Validar política de contraseña
-    const politica = validatePasswordPolicy(contrasena);
-    if(!politica.valid){
-        throw new ValidationError('La contraseña no cumple con la politica de seguridad', politica.errors);
-    }
+  // 4. Hashear la contraseña
+  const passwordHash = await hashPassword(contrasena);
 
-    //4. Hashear la contraseña
-    const passwordHash= await hashPassword(contrasena);
+  // 5. Crear usuario y rol en transacción
+  const usuario = await authRepository.createAdminUsuario({
+    nombreCompleto,
+    nombreUsuario,
+    correo,
+    passwordHash,
+  });
 
-    //5 Crear el usuario administrador y su rol en una transacción
-    const usuario = await authRepository.createAdminUsuario({
-        nombreCompleto,
-        nombreUsuario,
-        correo,
-        passwordHash,
-    });
+  // 6. Auditoría
+  await registrarAuditoria({
+    accion: 'REGISTRO_ADMIN_INICIAL',
+    usuarioId: usuario.id,
+    entidad: 'Usuario',
+    entidadId: usuario.id,
+    detalle: { correo, nombreUsuario },
+  });
 
-    //6. registrar en auditoria
-    await registrarAuditoria({
-        accion: 'REGISTRO_ADMIN_INICIAL',
-        usuarioId: usuario.id,
-        entidad:'Usuario',
-        entidadId: usuario.id,
-        detalle: {correo, nombreUsuario},
-    });
+  logger.info('✅ Administrador inicial registrado', { nombreUsuario, correo });
 
-    logger.info('Administrador inicial registrado', {nombreUsuario, correo})
-
-    //7.retornar sin información sensible
-    const {passwordHash: _, ...usuarioSinPassword}= usuario;
-    return usuarioSinPassword;
-
+  const { passwordHash: _, ...usuarioSinPassword } = usuario;
+  return usuarioSinPassword;
 };
 
 // ──────────────────────────────────────────────

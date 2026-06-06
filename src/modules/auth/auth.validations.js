@@ -1,4 +1,4 @@
-javascript// src/modules/auth/auth.validations.js
+// src/modules/auth/auth.validations.js
 //
 // Los schemas Zod definen la "forma" esperada de cada request.
 // Son la primera línea de defensa: si los datos no tienen la forma correcta,
@@ -131,5 +131,5 @@ export const changePasswordSchema = z.object({
 export const refreshTokenSchema =z.object({
     refreshToken: z
         .string({required_error: 'El refresh token es requerido.'})
-        .mim(10, 'Refresh token inválido.'),
+        .min(10, 'Refresh token inválido.'),
 });

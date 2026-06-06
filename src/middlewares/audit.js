@@ -1,4 +1,4 @@
-javascript// src/middlewares/audit.js
+// src/middlewares/audit.js
 //
 //  requiere un log de auditoría completo:
 // "registro de cada acción relevante realizada en el sistema

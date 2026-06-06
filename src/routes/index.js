@@ -7,7 +7,7 @@
 import {env} from '../config/environment.js';
 
 // Importación de routers de cada módulo
-// import authRoutes from '../modules/auth/auth.routes.js';
+import authRoutes from '../modules/auth/auth.routes.js';
 // import usersRoutes from '../modules/users/users.routes.js';
 // import rolesRoutes from '../modules/roles/roles.routes.js';
 // import categoriesRoutes from '../modules/categories/categories.routes.js';
@@ -34,7 +34,7 @@ export const setupRoutes = (app) =>{
 
     // Registro de rutas por módulo
     // Cada prefijo refleja exactamente el dominio del negocio
-    // app.use(`${apiPrefix}/auth`, authRoutes);
+    app.use(`${apiPrefix}/auth`, authRoutes);
     // app.use(`${apiPrefix}/users`, usersRoutes);
     // app.use(`${apiPrefix}/roles`, rolesRoutes);
     // app.use(`${apiPrefix}/categories`, categoriesRoutes);

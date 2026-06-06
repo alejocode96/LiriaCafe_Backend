@@ -55,7 +55,7 @@ app.use(cors({
 // Crítico para proteger el endpoint de login contra fuerza bruta.
 // ============================================================
 const globalLimiter = rateLimit({
-    windowMs: env.RATE_LIMIT_WINDOWS_MS, // vENTANA DE TIEMPO (15 min por defecto)
+    windowMs: env.RATE_LIMIT_WINDOW_MS, // vENTANA DE TIEMPO (15 min por defecto)
     max: env.RATE_LIMIT_MAX_REQUESTS, //Máximo de peticiones por ventana
     message:{
         success:false,

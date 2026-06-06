@@ -37,17 +37,16 @@ const router = Router();
 // pero este rate limiting es la primera barrera a nivel de red
 // ──────────────────────────────────────────────
 const loginRateLimiter = rateLimit({
-    windowMs: env.RATE_LIMIT_WINDOWS_MS,
-    max: env.LOGIN_RATE_LIMIT_MAX,
-    message:{
-        success: false,
-        message: 'Demasiados intentos de inicio de sesión. Espera 15 minutos',
-        code: 'LOGIN_RATE_LIMIT',
-    },
-    standardHeaders: true,
-    legacyHeaders: false,
-    //Aplica el límite por IP - podríamos también limitarlo por usuario/correo
-    keyGenerator: (req) => req.ip,
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: env.LOGIN_RATE_LIMIT_MAX,
+  message: {
+    success: false,
+    message: 'Demasiados intentos de inicio de sesión. Espera 15 minutos.',
+    code: 'LOGIN_RATE_LIMIT',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Sin keyGenerator — express-rate-limit maneja IPv6 automáticamente
 });
 
 //Rate limiter para forgot-password (más permisivo)

@@ -28,7 +28,7 @@ export const findUsuarioByIdentificador =async (identificador)=>{
     return prisma.usuario.findFirst({
         where:{
             OR:[
-                {correo:identificado},
+                {correo:identificador},
                 {nombreUsuario: identificador},
             ],
         },
@@ -276,3 +276,9 @@ export const actualizarContrasena = async (usuarioId, nuevoPasswordHash, invalid
 };
 
 
+// Agregar esta función en src/modules/auth/auth.repository.js
+export const buscarRolAdmin = async () => {
+  return prisma.rol.findFirst({ 
+    where: { esAdmin: true } 
+  });
+};
