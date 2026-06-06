@@ -1,52 +1,42 @@
 // src/middlewares/validate.js
 //
-// ¿QUÉ HACE ESTE MIDDLEWARE?
-// Es un middleware GENÉRICO que recibe un schema Zod y valida el body
-// del request contra ese schema.
-//
-// Sin validación, un usuario malicioso puede enviar:
-//   { "correo": null, "contrasena": "" }
-// Y nuestro código fallaría de formas inesperadas.
-//
-// Con este middleware:
-//   router.post('/login', validate(loginSchema), controller)
-// El body siempre llega al controlador limpio y con los tipos correctos.
-//
-// ¿POR QUÉ hacerlo genérico?
-// Porque lo vamos a usar en TODOS los módulos. Un solo middleware,
-// N schemas diferentes. Principio DRY (Don't Repeat Yourself).
+// VERSIÓN CORREGIDA
+// Cambios:
+// 1. Mapeo correcto de errores de Zod al formato { campo, mensaje, codigo }
+// 2. Manejo de errores de validación cruzada (refine) que no tienen path
+// 3. El campo 'campo' muestra la ruta completa para campos anidados
 
 import { ValidationError } from '../utils/errors.js';
 
-/**
- * Genera un middleware que valida el req.body con un schema Zod.
- *
- * @param {import('zod').ZodSchema} schema - Schema Zod para validar
- * @param {'body'|'query'|'params'} source - Fuente de datos a validar (default: 'body')
- * @returns {Function} Middleware de Express
- */
 export const validate = (schema, source = 'body') => {
   return (req, res, next) => {
-    // safeParse de Zod devuelve { success, data, error } en lugar de lanzar
+
     const result = schema.safeParse(req[source]);
 
     if (!result.success) {
-      // Transformamos los errores de Zod a un formato legible
-      const errors = result.error.issues.map((err) => ({
-        campo: err.path.join('.'),      // 'correo', 'contrasena.longitud', etc.
-        mensaje: err.message,
-        codigo: err.code,
-      }));
+      // Mapear cada error de Zod a nuestro formato estándar
+      const errors = result.error.errors.map((err) => {
+        // err.path es un array: ['confirmarContrasena'] o ['permisos', 0, 'modulo']
+        // Si el path está vacío, es un error de nivel raíz (ej: refine entre campos)
+        const campo = err.path.length > 0
+          ? err.path.join('.')   // ['a', 'b'] → 'a.b'
+          : 'general';           // Error de validación cruzada sin campo específico
+
+        return {
+          campo,
+          mensaje: err.message,
+          codigo: err.code,      // 'too_small', 'invalid_string', 'custom', etc.
+        };
+      });
 
       return next(
         new ValidationError('Los datos enviados no son válidos.', errors)
       );
     }
 
-    // Reemplazamos req.body con los datos parseados y transformados por Zod
-    // Esto limpia y transforma los datos (ej: trimear strings, convertir tipos)
+    // Reemplazar con datos parseados y transformados por Zod
+    // (trimming, toLowerCase, toUpperCase, etc. ya aplicados)
     req[source] = result.data;
-
     next();
   };
 };
