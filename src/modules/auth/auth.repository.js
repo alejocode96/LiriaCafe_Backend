@@ -11,10 +11,13 @@
 // CONVENCIÓN: Los métodos del repositorio son verbos descriptivos de BD:
 // findByCorreo, findByNombreUsuario, createUsuario, updateContrasena, etc.
 // NO contienen lógica de negocio — solo queries.
-import {prisma} from '../../config/database.js';
-import {addMinutes} from 'date-fns';
+
+import { prisma } from '../../config/database.js';
+import { addMinutes } from 'date-fns';
 import { env } from '../../config/environment.js';
-import { includes } from 'zod';
+
+
+
 
 // ──────────────────────────────────────────────
 // CONSULTAS DE USUARIO
@@ -187,92 +190,89 @@ export const resetearIntentosFallidos = async(usuarioId)=>{
  * crea un token de restablecimiento de contraseña.
  * El token expira en 30 minutos 
  */
-export const createTokenRestablecimiento = async (usuarioId, createTokenRestablecimiento, ip)=>{
-    //Primero invalidamos cualquier token previo de usuario
-    await prisma.createTokenRestablecimiento.updateMany({
-        where:{usuarioId, usado:false},
-        data:{usado:true},
-    });
+export const createTokenRestablecimiento = async (usuarioId, token, ip) => {
+  // Invalidar tokens previos del usuario
+  await prisma.tokenRestablecimiento.updateMany({
+    where: { usuarioId, usado: false },
+    data: { usado: true },
+  });
 
-    //Crear el nuevo token
-    return prisma.createTokenRestablecimiento.create({
-        data:{
-            token,
-            usuarioId,
-            ip,
-            expiresAt: addMinutes(new Date(), 30), //30 minutos de expiración
-            usado:false,
-        },
-    });
+  // Crear el nuevo token
+  return prisma.tokenRestablecimiento.create({
+    data: {
+      token,
+      usuarioId,
+      ip,
+      expiresAt: addMinutes(new Date(), 30),
+      usado: false,
+    },
+  });
 };
 
 /**
  * Busca un token de restablecimiento váñido (no usado, no expirado).
  */
-export const findTokenRestablecimiento = async (token) =>{
-    return prisma.findTokenRestablecimiento.findFirst({
-        where:{
-            token,
-            usado: false,
-            expiresAt:{gt: new Date()}, // gt= greater than (mayor que la fecha actual )
+export const findTokenRestablecimiento = async (token) => {
+  return prisma.tokenRestablecimiento.findFirst({
+    where: {
+      token,
+      usado: false,
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      usuario: {
+        include: {
+          historialContrasenas: {
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+          },
         },
-        include:{
-            usuario:{
-                include:{
-                    historialContrasenas:{
-                        orderBy: {createdAt: 'desc'},
-                        take:3,
-                    },
-                },
-            },
-        },
-    });
+      },
+    },
+  });
 };
 
 /**
  * Actualiza la contraseña del usuario y registra en el historial.
  * Opera en trasnsaccion para garantizar consistencia
  */
-export const actualizarContrasena = async (usuarioId, nuevoPasswordHash, invalidarToken=null)=>{
-    return prisma.$transaction(async (tx)=>{
-        //1. Actualizar contraseña del usuario
-        const usuario = await tx.usuario.update({
-            where:{id:usuarioId},
-            data:{
-                passwordHash:nuevoPasswordHash,
-                requiereCambioClave: false, //Ya cumplió el cambio obligatorio
-            },
-        });
-
-        //2.Guardar en el historial (máximo 10 entradas - limpiamos las viejas)
-        await tx.historialContrasena.create({
-            data:{usuarioId, passwordHash: nuevoPasswordHash},
-        });
-
-        //Limpiar historial antiguo ( mantener solo las últimas 10)
-        const historial = await tx.historialContrasena.findMany({
-            where: {usuarioId},
-            orderBy:{createdAt:'desc'},
-            select: {id: true},
-        });
-
-        if(historial.length >10){
-            const idsAeliminar= historial.slice(10).map((h)=> h.id);
-            await tx.historialContrasena.deleteMany({
-                where:{id:{in: idsAeliminar}},
-            });
-        }
-
-        //3. Invalidar  el token usado (si aplica)
-        if(invalidarToken){
-            await tx.findTokenRestablecimiento.update({
-                where:{id:invalidarToken},
-                data:{usado:true},
-            });
-        }
-
-        return usuario;
+export const actualizarContrasena = async (usuarioId, nuevoPasswordHash, invalidarToken = null) => {
+  return prisma.$transaction(async (tx) => {
+    const usuario = await tx.usuario.update({
+      where: { id: usuarioId },
+      data: {
+        passwordHash: nuevoPasswordHash,
+        requiereCambioClave: false,
+      },
     });
+
+    await tx.historialContrasena.create({
+      data: { usuarioId, passwordHash: nuevoPasswordHash },
+    });
+
+    const historial = await tx.historialContrasena.findMany({
+      where: { usuarioId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+
+    if (historial.length > 10) {
+      const idsAEliminar = historial.slice(10).map((h) => h.id);
+      await tx.historialContrasena.deleteMany({
+        where: { id: { in: idsAEliminar } },
+      });
+    }
+
+    // ✅ CORREGIDO: tokenRestablecimiento (no findTokenRestablecimiento)
+    if (invalidarToken) {
+      await tx.tokenRestablecimiento.update({
+        where: { id: invalidarToken },
+        data: { usado: true },
+      });
+    }
+
+    return usuario;
+  });
 };
 
 
@@ -280,5 +280,14 @@ export const actualizarContrasena = async (usuarioId, nuevoPasswordHash, invalid
 export const buscarRolAdmin = async () => {
   return prisma.rol.findFirst({ 
     where: { esAdmin: true } 
+  });
+};
+
+// Agregar esta función al final de auth.repository.js
+export const findHistorialContrasenas = async (usuarioId) => {
+  return prisma.historialContrasena.findMany({
+    where: { usuarioId },
+    orderBy: { createdAt: 'desc' },
+    take: 3,
   });
 };

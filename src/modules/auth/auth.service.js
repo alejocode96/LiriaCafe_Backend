@@ -363,63 +363,65 @@ export const restablecerContrasena = async ({token, nuevaContrasena, ip})=>{
  * También se usa cuando el sistema obliga el cambio en el primer login.
  */
 
-export const cambiarContrasena = async({
-    usuarioId,contrasenaActual,nuevaContrasena,ip,userAgent,
-}) =>{
-    //1.Obtener usuario con historial de contraseñas
-    const usuario = await authRepository.findUsuarioById(usuarioId);
+export const cambiarContrasena = async ({
+  usuarioId,
+  contrasenaActual,
+  nuevaContrasena,
+  ip,
+  userAgent,
+}) => {
+  // 1. Obtener usuario
+  const usuario = await authRepository.findUsuarioById(usuarioId);
+  if (!usuario) {
+    throw new NotFoundError('Usuario no encontrado.');
+  }
 
-    if(!usuario){
-        throw new NotFoundError('Uusario no encontrado.');
-    }
+  // 2. Verificar contraseña actual
+  const esCorrecta = await comparePassword(contrasenaActual, usuario.passwordHash);
+  if (!esCorrecta) {
+    throw new AuthenticationError('La contraseña actual ingresada es incorrecta.');
+  }
 
-    //2. Verificar que la contraseña actual es correcta
-    const esCorrecta = await comparePassword(contrasenaActual, usuario.passwordHash);
-    if(!esCorrecta){
-        throw new AuthenticationError('La contraseña actual ingresada es incorrecta');
-    }
+  // 3. Obtener historial desde el repositorio (sin importar prisma)
+  const historial = await authRepository.findHistorialContrasenas(usuarioId);
 
-    //3. obtener historial para validar reutilización
-    const {prisma} = await import('../../config/database.js');
-    const historial = await prisma.historialContrasenas.findMany({
-        where: {usuarioId},
-        orderBy: {createdAt: 'desc'},
-        take:3,
-    });
+  // 4. Validar política
+  const politica = validatePasswordPolicy(nuevaContrasena);
+  if (!politica.valid) {
+    throw new ValidationError(
+      'La contraseña no cumple con la política de seguridad.',
+      politica.errors.map((msg) => ({
+        campo: 'nuevaContrasena',
+        mensaje: msg,
+        codigo: 'password_policy',
+      }))
+    );
+  }
 
-    //4. Validar política
-    const politica = validatePasswordPolicy(nuevaContrasena);
-    if(!politica.valid){
-        throw new ValidationError(
-            'La contraseña no cumple con la política de seguridad.',
-            politica.errors
-        );
-    }
+  // 5. Verificar que no repite las últimas 3
+  const esNueva = await isPasswordNew(nuevaContrasena, historial);
+  if (!esNueva) {
+    throw new ValidationError(
+      'La nueva contraseña no puede ser igual a ninguna de las últimas 3 contraseñas.',
+      [{ campo: 'nuevaContrasena', mensaje: 'Contraseña ya utilizada recientemente.', codigo: 'password_reuse' }]
+    );
+  }
 
-    //5 Verificar que no repite últimas 3
-    const esNueva = await isPasswordNew(nuevaContrasena, historial);
-    if(!esNueva){
-        throw new ValidationError(
-            'La nueva contraseña no puede ser igual a ninguna de las últimas 3 contraseñas',
-            [],
-        );
-    }
+  // 6. Hashear y actualizar
+  const passwordHash = await hashPassword(nuevaContrasena);
+  await authRepository.actualizarContrasena(usuarioId, passwordHash);
 
-    // 6. Actualizar
-    const passwordHash = await passwordHash(nuevaContrasena);
-    await authRepository.actualizarContrasena(usuarioId, passwordHash);
+  // 7. Auditoría
+  await registrarAuditoria({
+    accion: 'CAMBIO_CONTRASENA',
+    usuarioId,
+    ip,
+    userAgent,
+  });
 
+  logger.info('Contraseña cambiada exitosamente', { usuarioId });
 
-    //7 Auditoria
-    await registrarAuditoria({
-        accion: 'CAMBIO_CONTRASENA',
-        usuarioId,
-        ip,
-        userAgent,
-    });
-
-    logger.info('Contraseña cambiada exitosamente', {usuarioId});
-    return{message: 'Contaseña actualizada exitosamente.'};
+  return { message: 'Contraseña actualizada exitosamente.' };
 };
 
 // ──────────────────────────────────────────────
