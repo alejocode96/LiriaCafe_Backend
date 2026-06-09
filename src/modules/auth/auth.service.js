@@ -308,51 +308,58 @@ export const solicitarRestablecimiento = async ({correo, ip})=>{
 /**
  * Completa el restablecimiento de contraseña usando el token.
  */
-export const restablecerContrasena = async ({token, nuevaContrasena, ip})=>{
-    //1.Buscar el token válido en la BD
-    const tokenRegistro = await authRepository-authRepository.findTokenRestablecimiento(token);
+export const restablecerContrasena = async ({ token, nuevaContrasena, ip }) => {
 
-    if(!tokenRegistro){
-        throw new AuthenticationError(
-            'El enlace de restablecimiento es inválido o ha expirado. Solicita uno nuevo'
-        )
+  // 1. Buscar el token válido en la BD
+  const tokenRegistro = await authRepository.findTokenRestablecimiento(token);
 
-    }
+  if (!tokenRegistro) {
+    throw new AuthenticationError(
+      'El enlace de restablecimiento es inválido o ha expirado. Solicita uno nuevo.'
+    );
+  }
 
-    const usuario = tokenRegistro.usuario;
+  const usuario = tokenRegistro.usuario;
 
-    //2. Validar política de contraseña
-    const politica= validatePasswordPolicy(nuevaContrasena);
-    if(!politica.valid){
-        throw new ValidationError(
-            'La contraseña no cumple con la política de seguridad.',
-            politica.errors
-        );
-    }
+  // 2. Validar política de contraseña
+  const politica = validatePasswordPolicy(nuevaContrasena);
+  if (!politica.valid) {
+    throw new ValidationError(
+      'La contraseña no cumple con la política de seguridad.',
+      politica.errors.map((msg) => ({
+        campo: 'nuevaContrasena',
+        mensaje: msg,
+        codigo: 'password_policy',
+      }))
+    );
+  }
 
-    // 3. Verificar que no es igual a las últimas 3 contraseña
-    const esNueva = await isPasswordNew(nuevaContrasena, usuario.historialContrasenas);
-    if(!esNueva){
-        throw new ValidationError(
-            'La nueva contraseña no puede ser igual a ninguna de las últimas 3 contraseñas utilizadas.',
-            []
-        );
-    }
+  // 3. Verificar que no repite las últimas 3 contraseñas
+  const esNueva = await isPasswordNew(nuevaContrasena, usuario.historialContrasenas);
+  if (!esNueva) {
+    throw new ValidationError(
+      'La nueva contraseña no puede ser igual a ninguna de las últimas 3 contraseñas utilizadas.',
+      [{ campo: 'nuevaContrasena', mensaje: 'Contraseña ya utilizada recientemente.', codigo: 'password_reuse' }]
+    );
+  }
 
-    //4. Hashear y actualizar
-    const passwordHash = await hashPassword(nuevaContrasena);
-    await authRepository.actualizarContrasena(usuario.id,passwordHash,tokenRegistro.id);
+  // 4. Hashear y actualizar
+  const passwordHash = await hashPassword(nuevaContrasena);
 
-    //5. Auditoria
-    await registrarAuditoria({
-        accion:'CONTRASENA_RESTABLECIDA',
-        usuarioId: usuario.id,
-        ip,
-    });
+  // ✅ CLAVE: pasar tokenRegistro.id (string) no tokenRegistro (objeto)
+  await authRepository.actualizarContrasena(usuario.id, passwordHash, tokenRegistro.id);
 
-    logger.info('Contraseña restablecida exitosamente', {usuarioId: usuario.id});
-    return {message: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión'};
-}
+  // 5. Auditoría
+  await registrarAuditoria({
+    accion: 'CONTRASENA_RESTABLECIDA',
+    usuarioId: usuario.id,
+    ip,
+  });
+
+  logger.info('Contraseña restablecida exitosamente', { usuarioId: usuario.id });
+
+  return { message: 'Contraseña restablecida exitosamente. Ya puedes iniciar sesión.' };
+};
 
 // ──────────────────────────────────────────────
 // CAMBIO DE CONTRASEÑA (usuario autenticado)
