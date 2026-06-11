@@ -8,6 +8,8 @@ import {env} from '../config/environment.js';
 
 // Importación de routers de cada módulo
 import authRoutes from '../modules/auth/auth.routes.js';
+import rolesRoutes from '../modules/roles/roles.routes.js';
+
 // import usersRoutes from '../modules/users/users.routes.js';
 // import rolesRoutes from '../modules/roles/roles.routes.js';
 // import categoriesRoutes from '../modules/categories/categories.routes.js';
