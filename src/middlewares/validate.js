@@ -1,11 +1,7 @@
 // src/middlewares/validate.js
 import { ValidationError } from '../utils/errors.js';
 
-// Traduce los mensajes técnicos de Zod al español
-// Funciona con Zod v3 Y v4 independientemente de la versión
 const traducirMensaje = (err) => {
-  // Si el mensaje ya está en español (viene de .min(), .email(), etc.) lo dejamos
-  // Solo traducimos los mensajes automáticos en inglés de Zod
   const mensajesIngles = {
     'Invalid input: expected string, received undefined': 'Este campo es requerido.',
     'Invalid input: expected string, received null': 'Este campo no puede estar vacío.',
@@ -15,21 +11,16 @@ const traducirMensaje = (err) => {
     'Expected number, received undefined': 'Este campo es requerido.',
     'Expected boolean, received undefined': 'Este campo es requerido.',
     'Invalid email': 'El formato del correo electrónico no es válido.',
-    'String must contain at least': null, // No traducir, viene de .min() personalizado
   };
 
-  // Buscar coincidencia exacta
   if (mensajesIngles[err.message] !== undefined) {
     return mensajesIngles[err.message] ?? err.message;
   }
 
-  // Buscar coincidencia parcial para mensajes dinámicos
   if (err.message?.startsWith('Invalid input: expected')) {
     return 'Este campo es requerido o tiene un tipo de dato inválido.';
   }
 
-  // Si no hay traducción, devolver el mensaje original
-  // (que ya viene en español desde .min(), .email(), .refine(), etc.)
   return err.message ?? 'Valor inválido.';
 };
 
@@ -50,7 +41,14 @@ export const validate = (schema, source = 'body') => {
       return next(new ValidationError('Los datos enviados no son válidos.', errors));
     }
 
-    req[source] = result.data;
+    // req.query es readonly como propiedad del objeto Request
+    // pero sus claves internas SÍ son mutables con Object.assign
+    if (source === 'query') {
+      Object.assign(req.query, result.data);
+    } else {
+      req[source] = result.data;
+    }
+
     next();
   };
 };

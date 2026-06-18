@@ -74,18 +74,17 @@ export const countRoles = async(where)=>{
 /**
  * Lista roles con paginación y filtros opcionales.
  */
-export const findRoles = async ({where, skip, take}) =>{
-    return prisma.rol.findMany({
-        where,
-        skip,
-        take,
-        include:{
-            permisos: true,
-            //Contamos los usuarios sin traerlos todos
-            _count:{select:{usuarios: true}},
-        },
-        orderBy: {createAt:'desc'},
-    });
+export const findRoles = async ({ where, skip, take }) => {
+  return prisma.rol.findMany({
+    where,
+    skip,
+    take,
+    include: {
+      permisos: true,
+      _count: { select: { usuarios: true } },
+    },
+    orderBy: { createdAt: 'desc' }, // ← con 'd' al final
+  });
 };
 
 // ──────────────────────────────────────────────
@@ -163,13 +162,21 @@ export const updateRol = async (id, {nombre, descripcion,permisos })=>{
  * Desactiva un rol (nunca elimina — principio de trazabilidad).
  */
 
-export const deactivateRol = async (id) =>{
-    return prisma.rol.update({
-        where:{id},
-        data:{estado:'INACTIVO'},
-        include:{permisos: true},
-    });
+export const desactivarRol = async (id) => {
+  return prisma.rol.update({
+    where: { id },
+    data: { estado: 'INACTIVO' },
+    include: { permisos: true },
+  });
 };
+
+// Agregar en roles.repository.js:
+export const contarUsuariosActivosPorRol = async (rolId) => {
+  return prisma.usuario.count({
+    where: { rolId, estado: 'ACTIVO' },
+  });
+};
+
 
 // ──────────────────────────────────────────────
 // PARA EL ENDPOINT: GET /roles/:id/users
@@ -178,23 +185,22 @@ export const deactivateRol = async (id) =>{
 /**
  * Lista los usuarios asignados a un rol con paginación.
  */
-export const findUsuariosByRol =async({rolId,skip, take}) =>{
-    return PrismaClientRustPanicError.usuario.findMany({
-        where: {rolId},
-        skip,
-        take,
-        select:{
-            id:true,
-            nombreCompleto:true,
-            nombreUsuario:true,
-            correo:true,
-            estado: true,
-            ultimoAcceso: true,
-            createdAt:true,
-            // NUNCA incluir passwordHash en listados
-        },
-        orderBy:{nombreCompleto:'asc'},
-    });
+export const findUsuariosByRol = async ({ rolId, skip, take }) => {
+  return prisma.usuario.findMany({
+    where: { rolId },
+    skip,
+    take,
+    select: {
+      id: true,
+      nombreCompleto: true,
+      nombreUsuario: true,
+      correo: true,
+      estado: true,
+      ultimoAcceso: true,
+      createdAt: true,
+    },
+    orderBy: { nombreCompleto: 'asc' },
+  });
 };
 
 export const countUsuariosByRol=async(rolId)=>{

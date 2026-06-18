@@ -46,14 +46,14 @@ export const editarRol= async (req,res,next)=>{
 };
 
 // PATCH /roles/:id/deactivate
-export const desactivarRol = async (req, res, next)=>{
-    try{
-        const rol = await rolesService.desactivarRol(req.params.id, re.user.id);
-        return ApiResponse.success(res,rol,'Rol desactivado exitosamente.');
-    }catch (error){
-        next(error);
-    }
-}
+export const desactivarRol = async (req, res, next) => {
+  try {
+    const rol = await rolesService.desactivarRol(req.params.id, req.user.id);
+    return ApiResponse.success(res, rol, 'Rol desactivado exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};
 
 // GET /roles/:id/users
 export const verUsuariosPorRol= async (req,res,next)=>{

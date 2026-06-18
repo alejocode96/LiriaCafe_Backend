@@ -103,122 +103,113 @@ export const verRol = async (id)=>{
 // ──────────────────────────────────────────────
 // EDITAR ROL
 // ──────────────────────────────────────────────
-export const editarRol = async(id,{nmbre, descripcion, permisos}, usuarioId)=>{
-    // REGLA 1: El rol debe existir
-    const rolActual = await rolesRepository.findRolById(id);
-    if(!rolActual){
-        throw new NotFoundError(`No se encontró el rol con ID: ${id}`);
+export const editarRol = async (id, { nombre, descripcion, permisos }, usuarioId) => {
 
+  // REGLA 1: El rol debe existir
+  const rolActual = await rolesRepository.findRolById(id);
+  if (!rolActual) {
+    throw new NotFoundError(`No se encontró el rol con ID: ${id}`);
+  }
+
+  // REGLA 2: El rol Administrador NO puede modificarse
+  if (rolActual.esAdmin) {
+    throw new AuthorizationError(
+      'El rol Administrador es predefinido y no puede modificarse.'
+    );
+  }
+
+  // REGLA 3: Si cambia el nombre, verificar que no esté en uso
+  if (nombre && nombre !== rolActual.nombre) {
+    const nombreEnUso = await rolesRepository.findRolByNombre(nombre);
+    if (nombreEnUso) {
+      throw new ConflictError(`Ya existe un rol con el nombre "${nombre}".`);
     }
+  }
 
-    // REGLA 2: El rol Administrador NO puede modificarse 
-    if (rolActual.esAdmin){
-        throw new AuthorizationError(
-            'El rol administrador es predefinido y no puede modificarse.'
-        );
-    }
+  // Construir permisos finales combinando actuales con los enviados
+  let permisosFinales = permisos;
+  if (permisos !== undefined) {
+    const permisosActuales = rolActual.permisos;
+    const matrizVacia = generarMatrizPermisosVacia();
 
-     // REGLA 3: Si cambia el nombre, verificar que el nuevo nombre no esté en uso
-     if(nombre && bombre !== rolActual.nombre){
-        const nombreEnUso = await rolesRepository.findRolByNombre(nombre);
-        if(nombreEnUso){
-            throw new ConflictError(`Ya existe un rol con el nombre "${nombre}"`);
-        }
-     }
+    permisosFinales = matrizVacia.map((permisoVacio) => {
+      const permisoEnviado = permisos.find(
+        (p) => p.modulo === permisoVacio.modulo && p.accion === permisoVacio.accion
+      );
+      if (permisoEnviado) return permisoEnviado;
 
-     // Si se envían permisos parciales, completar con los actuales para el resto
-     let permisosFinales= permisos;
-     if(permisos !== undefined){
-        const permisosActuales= rolActual.permisos;
-        const matrizVacia = generarMatrizPermisosVacia();
+      const permisoActual = permisosActuales.find(
+        (p) => p.modulo === permisoVacio.modulo && p.accion === permisoVacio.accion
+      );
+      return permisoActual
+        ? { modulo: permisoActual.modulo, accion: permisoActual.accion, permitido: permisoActual.permitido }
+        : permisoVacio;
+    });
+  }
 
-        permisosFinales = matrizVacia.map((permisovacio)=>{
-            //primero buscamos en los permisos enviados
-            const permisoEnviado = permisos.find(
-                (p)=> p.modulo === permisovacio.modulo && p.accion ===permisovacio.accion
-            );
-            if(permisoEnviado) return permisoEnviado;
+  const rolActualizado = await rolesRepository.updateRol(id, {
+    nombre,
+    descripcion,
+    permisos: permisosFinales,
+  });
 
-            //Si no está en los enviados, usar el actual
-            const permisoActual= permisosActuales.find(
-                (p)=> p.modulo=== permisovacio.modulo && p.accion === permisovacio.accion
-            );
+  await registrarAuditoria({
+    accion: 'EDITAR_ROL',
+    usuarioId,
+    entidad: 'Rol',
+    entidadId: id,
+    detalle: {
+      antes: { nombre: rolActual.nombre, descripcion: rolActual.descripcion },
+      despues: { nombre: rolActualizado.nombre, descripcion: rolActualizado.descripcion },
+    },
+  });
 
-            return permisoActual
-                ? {modulo: permisoActual.modulo, accion: permisoActual.accion, permitido: permisoActual.permitido}
-                : permisovacio;
-        });
-     }
+  logger.info('Rol editado', { rolId: id, usuarioId });
 
-     const rolActualizado = await rolesRepository.updateRol(id,{
-        nombre,
-        descripcion,
-        permisos: permisosFinales,
-     });
-
-     //Auditoria con snapshot de cambios
-     await registrarAuditoria({
-        accion:'EDITAR_TOL',
-        usuarioId,
-        entidad:'Rol',
-        entidadId: id,
-        detalle:{
-            antes:{nombre: rolActual.nombre, descripcion:rolActual.descripcion},
-            despues:{nombre: rolActualizado.nombre, descripcion: rolActualizado.descripcion},
-        },
-     });
-
-     logger.info('Rol editado', {rolId:id, usuarioId});
-     return rolActualizado;
+  return rolActualizado;
 };
 
 // ──────────────────────────────────────────────
 // DESACTIVAR ROL
 // ──────────────────────────────────────────────
-export const desactivarRol =async (id, usuarioId)=>{
-    //REGLA 1: El rol debe exisitir
-    const rol = await rolesRepository.findRolById(id);
-    if(!rol){
-        throw new NotFoundError(`No se encontró el rol con ID: ${id}`);
-    }
+export const desactivarRol = async (id, usuarioId) => {
 
-    //REGLA 2: El rol Admin no puede desactivarse
-    if(rol.esAdmin){
-        throw new AuthorizationError(
-            'El rol Administrador no puede desactivarse.'
-        );
-    }
+  const rol = await rolesRepository.findRolById(id);
+  if (!rol) {
+    throw new NotFoundError(`No se encontró el rol con ID: ${id}`);
+  }
 
-    //REGLA 3: no desactivar si ya está inactivo
-    if(rol.estado ==='INACTIVO'){
-        throw new ConflictError('El rol ya está desactivado');
-    }
+  if (rol.esAdmin) {
+    throw new AuthorizationError('El rol Administrador no puede desactivarse.');
+  }
 
-    //REGLA 4: Verificar que no haya usuarios ACTIVOS asiganados a este rol
-    // "verificando que no haya usuarios activos asignados")
-    const {prisma}= await import('../../config/database.js');
-    const usuariosActivos = await prisma.usuario.count({
-        where:{rolId: id, estado: 'ACTIVO'},
-    });
+  if (rol.estado === 'INACTIVO') {
+    throw new ConflictError('El rol ya está desactivado.');
+  }
 
-    if(usuariosActivos>0){
-        throw new ConflictError(
-            `No se puede desactivar el rol "${rol.nombre}" porque tiene ${usuariosActivos} usuario(s) activo(s) asignado(s). Reasigna los usuarios primero.`
-        );
-    }
+  // ✅ Sin importar prisma en el servicio — usa el repositorio
+  const usuariosActivos = await rolesRepository.contarUsuariosActivosPorRol(id);
 
-    const rolDesactivado = await rolesRepository.desactivarRol(id);
+  if (usuariosActivos > 0) {
+    throw new ConflictError(
+      `No se puede desactivar el rol "${rol.nombre}" porque tiene ${usuariosActivos} usuario(s) activo(s). Reasigna los usuarios primero.`
+    );
+  }
 
-    await registrarAuditoria({
-        'accion': 'DESACTIVAR_ROL',
-        usuarioId,
-        entidad: 'Rol',
-        entidadId: id,
-        detalle:{nombre: rol.nombre},
-    });
+  // ✅ Nombre consistente en español
+  const rolDesactivado = await rolesRepository.desactivarRol(id);
 
-    logger.info('Rol desactivado',{rolId:id, nombre: rol.nombre, usuarioId});
-    return rolDesactivado;
+  await registrarAuditoria({
+    accion: 'DESACTIVAR_ROL',
+    usuarioId,
+    entidad: 'Rol',
+    entidadId: id,
+    detalle: { nombre: rol.nombre },
+  });
+
+  logger.info('Rol desactivado', { rolId: id, nombre: rol.nombre, usuarioId });
+
+  return rolDesactivado;
 };
 
 // ──────────────────────────────────────────────

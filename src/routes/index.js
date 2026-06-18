@@ -38,7 +38,7 @@ export const setupRoutes = (app) =>{
     // Cada prefijo refleja exactamente el dominio del negocio
     app.use(`${apiPrefix}/auth`, authRoutes);
     // app.use(`${apiPrefix}/users`, usersRoutes);
-    // app.use(`${apiPrefix}/roles`, rolesRoutes);
+    app.use(`${apiPrefix}/roles`, rolesRoutes);
     // app.use(`${apiPrefix}/categories`, categoriesRoutes);
     // app.use(`${apiPrefix}/inventory`, inventoryRoutes);
     // app.use(`${apiPrefix}/products`, productsRoutes);

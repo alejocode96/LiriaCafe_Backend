@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import { MODULOS_DISPONIBLES, ACCIONES_DISPONIBLES } from '../../config/constants';
+import { MODULOS_DISPONIBLES, ACCIONES_DISPONIBLES } from '../../config/constants.js';
 
 //Schema de un permiso individual dentro de la matriz
 //Ejemplo: {modulo: "VENTAS" , accion: "CREAR", permitido: true}
@@ -69,8 +69,8 @@ export const editarRolSchema = z.object({
 // GET /roles — Query params para filtrar y paginar
 // ──────────────────────────────────────────────
 export const listarRolesSchema = z.object({
-    page: z.string().optional().default('1'),
-    limit: z.string().optional.default('20'),
+    page: z.string().default('1'),
+    limit: z.string().default('20'),
     estado: z.enum(['ACTIVO', 'INACTIVO']).optional(),
     nombre: z.string().optional(),
 });
