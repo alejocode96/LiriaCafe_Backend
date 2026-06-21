@@ -10,7 +10,7 @@ import {env} from '../config/environment.js';
 import authRoutes from '../modules/auth/auth.routes.js';
 import rolesRoutes from '../modules/roles/roles.routes.js';
 
-// import usersRoutes from '../modules/users/users.routes.js';
+import usersRoutes from '../modules/users/users.routes.js';
 // import rolesRoutes from '../modules/roles/roles.routes.js';
 // import categoriesRoutes from '../modules/categories/categories.routes.js';
 // import inventoryRoutes from '../modules/inventory/inventory.routes.js';
@@ -37,7 +37,7 @@ export const setupRoutes = (app) =>{
     // Registro de rutas por módulo
     // Cada prefijo refleja exactamente el dominio del negocio
     app.use(`${apiPrefix}/auth`, authRoutes);
-    // app.use(`${apiPrefix}/users`, usersRoutes);
+    app.use(`${apiPrefix}/users`, usersRoutes);
     app.use(`${apiPrefix}/roles`, rolesRoutes);
     // app.use(`${apiPrefix}/categories`, categoriesRoutes);
     // app.use(`${apiPrefix}/inventory`, inventoryRoutes);
