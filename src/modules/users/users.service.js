@@ -288,3 +288,51 @@ export const reactivarUsuario = async (id, adminId) => {
 
 
 
+export const desbloquearCuenta = async (id, adminId) => {
+  const usuario = await usersRepository.findUsuarioById(id);
+  if (!usuario) {
+    throw new NotFoundError(`No se encontró un usuario con ID: ${id}`);
+  }
+
+  // Verificar que realmente está bloqueado
+  if (!usuario.bloqueadoPermanente && !usuario.bloqueadoHasta) {
+    throw new ConflictError('La cuenta no está bloqueada.');
+  }
+
+  const usuarioDesbloqueado = await usersRepository.desbloquearUsuario(id, adminId);
+
+  await registrarAuditoria({
+    accion: 'DESBLOQUEAR_CUENTA',
+    usuarioId: adminId,
+    entidad: 'Usuario',
+    entidadId: id,
+    detalle: { nombreUsuario: usuario.nombreUsuario },
+  });
+
+  logger.info('Cuenta desbloqueada', { usuarioId: id, adminId });
+  return usuarioDesbloqueado;
+};
+
+export const forzarCambioContrasena = async (id, adminId) => {
+  const usuario = await usersRepository.findUsuarioById(id);
+  if (!usuario) {
+    throw new NotFoundError(`No se encontró un usuario con ID: ${id}`);
+  }
+
+  if (usuario.requiereCambioClave) {
+    throw new ConflictError('El usuario ya tiene pendiente un cambio de contraseña.');
+  }
+
+  const usuarioActualizado = await usersRepository.forzarCambioContrasena(id, adminId);
+
+  await registrarAuditoria({
+    accion: 'FORZAR_CAMBIO_CONTRASENA',
+    usuarioId: adminId,
+    entidad: 'Usuario',
+    entidadId: id,
+    detalle: { nombreUsuario: usuario.nombreUsuario },
+  });
+
+  logger.info('Cambio de contraseña forzado', { usuarioId: id, adminId });
+  return usuarioActualizado;
+};

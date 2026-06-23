@@ -212,3 +212,46 @@ export const contarAdminsActivos = async () => {
     },
   });
 };
+
+// AGREGAR en users.repository.js:
+export const desbloquearUsuario = async (id, modificadoPorId) => {
+  return prisma.usuario.update({
+    where: { id },
+    data: {
+      bloqueadoPermanente: false,
+      bloqueadoHasta: null,
+      intentosFallidos: 0,
+      bloqueosTemporales: 0,
+      modificadoPorId,
+    },
+    select: {
+      id: true,
+      nombreCompleto: true,
+      nombreUsuario: true,
+      bloqueadoPermanente: true,
+      bloqueadoHasta: true,
+      intentosFallidos: true,
+      bloqueosTemporales: true,
+    },
+  });
+};
+
+
+
+
+
+export const forzarCambioContrasena = async (id, modificadoPorId) => {
+  return prisma.usuario.update({
+    where: { id },
+    data: {
+      requiereCambioClave: true,
+      modificadoPorId,
+    },
+    select: {
+      id: true,
+      nombreCompleto: true,
+      nombreUsuario: true,
+      requiereCambioClave: true,
+    },
+  });
+};

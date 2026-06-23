@@ -72,3 +72,28 @@ export const reactivarUsuario = async (req, res, next) => {
     next(error);
   }
 };
+
+export const desbloquearCuenta = async (req, res, next) => {
+  try {
+    const usuario = await usersService.desbloquearCuenta(req.params.id, req.user.id);
+    return ApiResponse.success(res, usuario, 'Cuenta desbloqueada exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forzarCambioContrasena = async (req, res, next) => {
+  try {
+    const usuario = await usersService.forzarCambioContrasena(
+      req.params.id,
+      req.user.id
+    );
+    return ApiResponse.success(
+      res,
+      usuario,
+      'Se ha forzado el cambio de contraseña. El usuario deberá cambiarla en su próximo inicio de sesión.'
+    );
+  } catch (error) {
+    next(error);
+  }
+};

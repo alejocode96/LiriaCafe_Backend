@@ -65,4 +65,18 @@ router.patch(
   usersController.reactivarUsuario
 );
 
+//desbloquear
+router.patch(
+  '/:id/unlock',
+  requireAdmin,
+  usersController.desbloquearCuenta
+);
+
+//cambio contraseña forzado
+router.patch(
+  '/:id/force-password-change',
+  requireAdmin,
+  usersController.forzarCambioContrasena
+);
+
 export default router;
