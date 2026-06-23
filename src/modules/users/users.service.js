@@ -140,3 +140,73 @@ export const verUsuario = async (id) => {
 
   return usuario;
 };
+
+
+// ──────────────────────────────────────────────
+// EDITAR USUARIO
+// ──────────────────────────────────────────────
+export const editarUsuario = async (id, datos, adminId) => {
+
+  // REGLA 1: El usuario debe existir
+  const usuarioActual = await usersRepository.findUsuarioById(id);
+  if (!usuarioActual) {
+    throw new NotFoundError(`No se encontró un usuario con ID: ${id}`);
+  }
+
+  // REGLA 2: No se puede editar al propio admin raíz cambiándole el rol
+  // (protección extra — el admin siempre debe tener su rol)
+  if (usuarioActual.rol.esAdmin && datos.rolId && datos.rolId !== usuarioActual.rol.id) {
+    throw new AuthorizationError(
+      'No se puede cambiar el rol del usuario Administrador principal.'
+    );
+  }
+
+  // REGLA 3: Si cambia correo o username, verificar unicidad
+  if (datos.correo || datos.nombreUsuario) {
+    const enUso = await usersRepository.existeUsuario(
+      datos.correo ?? usuarioActual.correo,
+      datos.nombreUsuario ?? usuarioActual.nombreUsuario,
+      id  // Excluir el propio registro de la verificación
+    );
+    if (enUso) {
+      const campo = enUso.correo === (datos.correo ?? '') ? 'correo electrónico' : 'nombre de usuario';
+      throw new ConflictError(`El ${campo} ya está en uso por otro usuario.`);
+    }
+  }
+
+  // REGLA 4: Si cambia el rol, verificar que el nuevo rol existe y está activo
+  if (datos.rolId && datos.rolId !== usuarioActual.rol.id) {
+    const rolNuevo = await usersRepository.findRolActivo(datos.rolId);
+    if (!rolNuevo) {
+      throw new NotFoundError('El rol especificado no existe o está inactivo.');
+    }
+  }
+
+  // Construir solo los datos que cambian
+  const datosActualizar = {};
+  if (datos.nombreCompleto) datosActualizar.nombreCompleto = datos.nombreCompleto;
+  if (datos.nombreUsuario) datosActualizar.nombreUsuario = datos.nombreUsuario;
+  if (datos.correo) datosActualizar.correo = datos.correo;
+  if (datos.rolId) datosActualizar.rolId = datos.rolId;
+
+  const usuarioActualizado = await usersRepository.updateUsuario(id, datosActualizar, adminId);
+
+  await registrarAuditoria({
+    accion: 'EDITAR_USUARIO',
+    usuarioId: adminId,
+    entidad: 'Usuario',
+    entidadId: id,
+    detalle: {
+      antes: {
+        nombreCompleto: usuarioActual.nombreCompleto,
+        correo: usuarioActual.correo,
+        rol: usuarioActual.rol.nombre,
+      },
+      despues: datosActualizar,
+    },
+  });
+
+  logger.info('Usuario editado', { usuarioId: id, adminId, cambios: Object.keys(datosActualizar) });
+
+  return usuarioActualizado;
+};

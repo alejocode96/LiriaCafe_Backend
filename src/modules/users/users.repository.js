@@ -156,3 +156,29 @@ export const findUsuarioById = async (id) => {
   });
 };
 
+
+
+// ──────────────────────────────────────────────
+// PARA: PUT /users/:id — Editar usuario
+// ──────────────────────────────────────────────
+export const updateUsuario = async (id, data, modificadoPorId) => {
+  return prisma.usuario.update({
+    where: { id },
+    data: {
+      ...data,
+      modificadoPorId,
+    },
+    select: {
+      id: true,
+      nombreCompleto: true,
+      nombreUsuario: true,
+      correo: true,
+      estado: true,
+      requiereCambioClave: true,
+      updatedAt: true,
+      rol: {
+        select: { id: true, nombre: true, esAdmin: true },
+      },
+    },
+  });
+};

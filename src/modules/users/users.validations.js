@@ -62,3 +62,46 @@ export const listarUsuariosSchema = z.object({
   rolId: z.string().optional(),
   buscar: z.string().optional(), // Búsqueda por nombre, username o correo
 });
+
+
+
+// ──────────────────────────────────────────────
+// PUT /users/:id — Editar usuario
+// Todos los campos son opcionales (patch parcial)
+// ──────────────────────────────────────────────
+export const editarUsuarioSchema = z.object({
+  nombreCompleto: z
+    .string(msg('nombreCompleto'))
+    .min(3, 'El nombre completo debe tener al menos 3 caracteres.')
+    .max(100, 'El nombre completo no puede superar 100 caracteres.')
+    .trim()
+    .optional(),
+
+  nombreUsuario: z
+    .string(msg('nombreUsuario'))
+    .min(3, 'El nombre de usuario debe tener al menos 3 caracteres.')
+    .max(30, 'El nombre de usuario no puede superar 30 caracteres.')
+    .regex(
+      /^[a-zA-Z0-9_]+$/,
+      'Solo se permiten letras, números y guiones bajos.'
+    )
+    .trim()
+    .toLowerCase()
+    .optional(),
+
+  correo: z
+    .string(msg('correo'))
+    .email('El formato del correo electrónico no es válido.')
+    .trim()
+    .toLowerCase()
+    .optional(),
+
+  rolId: z
+    .string(msg('rolId'))
+    .min(1, 'El ID del rol no puede estar vacío.')
+    .optional(),
+}).refine(
+  // Al menos un campo debe ser enviado para editar
+  (data) => Object.keys(data).length > 0,
+  { message: 'Debes enviar al menos un campo para actualizar.' }
+);

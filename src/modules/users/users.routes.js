@@ -5,7 +5,7 @@ import { authenticate } from '../../middlewares/authenticate.js';
 import { authorize, requireAdmin } from '../../middlewares/authorize.js';
 import { validate } from '../../middlewares/validate.js';
 import { MODULO, ACCION } from '../../config/constants.js';
-import { crearUsuarioSchema,listarUsuariosSchema } from './users.validations.js';
+import { crearUsuarioSchema,listarUsuariosSchema,editarUsuarioSchema } from './users.validations.js';
 
 
 
@@ -36,6 +36,18 @@ router.get(
   '/:id',
   authorize(MODULO.USUARIOS, ACCION.VER),
   usersController.verUsuario
+);
+
+
+
+
+
+// AGREGAR ruta: EDITAR USUARIO
+router.put(
+  '/:id',
+  authorize(MODULO.USUARIOS, ACCION.EDITAR),
+  validate(editarUsuarioSchema),
+  usersController.editarUsuario
 );
 
 export default router;

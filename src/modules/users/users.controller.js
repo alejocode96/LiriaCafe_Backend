@@ -39,3 +39,18 @@ export const verUsuario = async (req, res, next) => {
     next(error);
   }
 };
+
+
+
+export const editarUsuario = async (req, res, next) => {
+  try {
+    const usuario = await usersService.editarUsuario(
+      req.params.id,
+      req.body,
+      req.user.id
+    );
+    return ApiResponse.success(res, usuario, 'Usuario actualizado exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};
