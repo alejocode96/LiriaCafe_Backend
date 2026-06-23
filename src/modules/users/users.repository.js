@@ -121,3 +121,38 @@ export const findUsuarios = async ({ where, skip, take }) => {
   });
 };
 
+
+// ──────────────────────────────────────────────
+// PARA: GET /users/:id
+// ──────────────────────────────────────────────
+export const findUsuarioById = async (id) => {
+  return prisma.usuario.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      nombreCompleto: true,
+      nombreUsuario: true,
+      correo: true,
+      estado: true,
+      requiereCambioClave: true,
+      ultimoAcceso: true,
+      intentosFallidos: true,
+      bloqueosTemporales: true,
+      bloqueadoHasta: true,
+      bloqueadoPermanente: true,
+      creadoPorId: true,
+      createdAt: true,
+      updatedAt: true,
+      rol: {
+        select: {
+          id: true,
+          nombre: true,
+          descripcion: true,
+          esAdmin: true,
+          permisos: true, // Incluimos permisos completos en vista detalle
+        },
+      },
+    },
+  });
+};
+

@@ -126,3 +126,17 @@ export const listarUsuarios = async (query) => {
     meta: buildPaginationMeta(total, page, limit),
   };
 };
+
+
+// ──────────────────────────────────────────────
+// VER USUARIO POR ID
+// ──────────────────────────────────────────────
+export const verUsuario = async (id) => {
+  const usuario = await usersRepository.findUsuarioById(id);
+
+  if (!usuario) {
+    throw new NotFoundError(`No se encontró un usuario con ID: ${id}`);
+  }
+
+  return usuario;
+};

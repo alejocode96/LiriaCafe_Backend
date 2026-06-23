@@ -31,4 +31,11 @@ router.get(
   usersController.listarUsuarios
 );
 
+//OBTENER USUARIO POR ID
+router.get(
+  '/:id',
+  authorize(MODULO.USUARIOS, ACCION.VER),
+  usersController.verUsuario
+);
+
 export default router;

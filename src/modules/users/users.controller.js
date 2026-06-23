@@ -29,3 +29,13 @@ export const listarUsuarios = async (req, res, next) => {
     next(error);
   }
 };
+
+
+export const verUsuario = async (req, res, next) => {
+  try {
+    const usuario = await usersService.verUsuario(req.params.id);
+    return ApiResponse.success(res, usuario, 'Usuario obtenido exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};
