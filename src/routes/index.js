@@ -9,10 +9,9 @@ import {env} from '../config/environment.js';
 // Importación de routers de cada módulo
 import authRoutes from '../modules/auth/auth.routes.js';
 import rolesRoutes from '../modules/roles/roles.routes.js';
-
 import usersRoutes from '../modules/users/users.routes.js';
-// import rolesRoutes from '../modules/roles/roles.routes.js';
-// import categoriesRoutes from '../modules/categories/categories.routes.js';
+
+import categoriesRoutes from '../modules/categories/categories.routes.js';
 // import inventoryRoutes from '../modules/inventory/inventory.routes.js';
 // import productsRoutes from '../modules/products/products.routes.js';
 // import cashRegisterRoutes from '../modules/cash-register/cash-register.routes.js';
@@ -39,7 +38,7 @@ export const setupRoutes = (app) =>{
     app.use(`${apiPrefix}/auth`, authRoutes);
     app.use(`${apiPrefix}/users`, usersRoutes);
     app.use(`${apiPrefix}/roles`, rolesRoutes);
-    // app.use(`${apiPrefix}/categories`, categoriesRoutes);
+    app.use(`${apiPrefix}/categories`, categoriesRoutes);
     // app.use(`${apiPrefix}/inventory`, inventoryRoutes);
     // app.use(`${apiPrefix}/products`, productsRoutes);
     // app.use(`${apiPrefix}/cash-register`, cashRegisterRoutes);
