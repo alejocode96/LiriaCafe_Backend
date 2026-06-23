@@ -210,3 +210,51 @@ export const editarUsuario = async (id, datos, adminId) => {
 
   return usuarioActualizado;
 };
+
+
+// ──────────────────────────────────────────────
+// DESACTIVAR USUARIO
+// ──────────────────────────────────────────────
+export const desactivarUsuario = async (id, adminId) => {
+
+  const usuario = await usersRepository.findUsuarioById(id);
+  if (!usuario) {
+    throw new NotFoundError(`No se encontró un usuario con ID: ${id}`);
+  }
+
+  // REGLA 1: No desactivar si ya está inactivo
+  if (usuario.estado === 'INACTIVO') {
+    throw new ConflictError('El usuario ya está desactivado.');
+  }
+
+  // REGLA 2: No desactivar al propio usuario admin que hace la acción
+  if (id === adminId) {
+    throw new AuthorizationError('No puedes desactivar tu propia cuenta.');
+  }
+
+  // REGLA 3: Proteger al último administrador activo del sistema
+  if (usuario.rol.esAdmin) {
+    const adminsActivos = await usersRepository.contarAdminsActivos();
+    if (adminsActivos <= 1) {
+      throw new AuthorizationError(
+        'No se puede desactivar al único administrador activo del sistema.'
+      );
+    }
+  }
+
+  const usuarioDesactivado = await usersRepository.cambiarEstadoUsuario(
+    id, 'INACTIVO', adminId
+  );
+
+  await registrarAuditoria({
+    accion: 'DESACTIVAR_USUARIO',
+    usuarioId: adminId,
+    entidad: 'Usuario',
+    entidadId: id,
+    detalle: { nombreUsuario: usuario.nombreUsuario },
+  });
+
+  logger.info('Usuario desactivado', { usuarioId: id, adminId });
+
+  return usuarioDesactivado;
+};

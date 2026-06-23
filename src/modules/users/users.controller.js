@@ -54,3 +54,13 @@ export const editarUsuario = async (req, res, next) => {
     next(error);
   }
 };
+
+export const desactivarUsuario = async (req, res, next) => {
+  try {
+    const usuario = await usersService.desactivarUsuario(req.params.id, req.user.id);
+    return ApiResponse.success(res, usuario, 'Usuario desactivado exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};
+

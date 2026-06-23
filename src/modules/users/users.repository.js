@@ -182,3 +182,33 @@ export const updateUsuario = async (id, data, modificadoPorId) => {
     },
   });
 };
+
+
+
+
+// ──────────────────────────────────────────────
+// PARA: PATCH /users/:id/deactivate y /reactivate
+// ──────────────────────────────────────────────
+export const cambiarEstadoUsuario = async (id, estado, modificadoPorId) => {
+  return prisma.usuario.update({
+    where: { id },
+    data: { estado, modificadoPorId },
+    select: {
+      id: true,
+      nombreCompleto: true,
+      nombreUsuario: true,
+      estado: true,
+      updatedAt: true,
+    },
+  });
+};
+
+// Cuenta los administradores activos — para proteger al último admin
+export const contarAdminsActivos = async () => {
+  return prisma.usuario.count({
+    where: {
+      estado: 'ACTIVO',
+      rol: { esAdmin: true },
+    },
+  });
+};

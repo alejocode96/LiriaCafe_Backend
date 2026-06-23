@@ -50,4 +50,11 @@ router.put(
   usersController.editarUsuario
 );
 
+
+// INACTIVAR
+router.patch(
+  '/:id/deactivate',
+  authorize(MODULO.USUARIOS, ACCION.DESACTIVAR),
+  usersController.desactivarUsuario
+);
 export default router;
