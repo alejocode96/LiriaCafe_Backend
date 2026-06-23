@@ -64,3 +64,11 @@ export const desactivarUsuario = async (req, res, next) => {
   }
 };
 
+export const reactivarUsuario = async (req, res, next) => {
+  try {
+    const usuario = await usersService.reactivarUsuario(req.params.id, req.user.id);
+    return ApiResponse.success(res, usuario, 'Usuario reactivado exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};

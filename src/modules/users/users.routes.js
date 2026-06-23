@@ -57,4 +57,12 @@ router.patch(
   authorize(MODULO.USUARIOS, ACCION.DESACTIVAR),
   usersController.desactivarUsuario
 );
+
+// ACTIVAR
+router.patch(
+  '/:id/reactivate',
+  requireAdmin,
+  usersController.reactivarUsuario
+);
+
 export default router;

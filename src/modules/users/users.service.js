@@ -258,3 +258,33 @@ export const desactivarUsuario = async (id, adminId) => {
 
   return usuarioDesactivado;
 };
+
+
+export const reactivarUsuario = async (id, adminId) => {
+  const usuario = await usersRepository.findUsuarioById(id);
+  if (!usuario) {
+    throw new NotFoundError(`No se encontró un usuario con ID: ${id}`);
+  }
+
+  if (usuario.estado === 'ACTIVO') {
+    throw new ConflictError('El usuario ya está activo.');
+  }
+
+  const usuarioReactivado = await usersRepository.cambiarEstadoUsuario(
+    id, 'ACTIVO', adminId
+  );
+
+  await registrarAuditoria({
+    accion: 'REACTIVAR_USUARIO',
+    usuarioId: adminId,
+    entidad: 'Usuario',
+    entidadId: id,
+    detalle: { nombreUsuario: usuario.nombreUsuario },
+  });
+
+  logger.info('Usuario reactivado', { usuarioId: id, adminId });
+  return usuarioReactivado;
+};
+
+
+
