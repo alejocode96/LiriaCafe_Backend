@@ -86,3 +86,43 @@ export const crearUsuario= async(
 
     return usuario;
 };
+
+
+
+// ──────────────────────────────────────────────
+// LISTAR USUARIOS
+// ──────────────────────────────────────────────
+export const listarUsuarios = async (query) => {
+  const { page, limit, skip } = parsePagination(query);
+
+  // Construir filtros dinámicamente
+  const where = {};
+
+  if (query.estado) {
+    where.estado = query.estado;
+  }
+
+  if (query.rolId) {
+    where.rolId = query.rolId;
+  }
+
+  if (query.buscar) {
+    // Búsqueda en múltiples campos simultáneamente
+    where.OR = [
+      { nombreCompleto: { contains: query.buscar } },
+      { nombreUsuario: { contains: query.buscar.toLowerCase() } },
+      { correo: { contains: query.buscar.toLowerCase() } },
+    ];
+  }
+
+  // Ejecutar count y findMany en paralelo — más eficiente que secuencial
+  const [total, usuarios] = await Promise.all([
+    usersRepository.countUsuarios(where),
+    usersRepository.findUsuarios({ where, skip, take: limit }),
+  ]);
+
+  return {
+    usuarios,
+    meta: buildPaginationMeta(total, page, limit),
+  };
+};

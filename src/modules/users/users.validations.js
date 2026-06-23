@@ -49,3 +49,16 @@ export const crearUsuarioSchema = z.object({
 
     
 });
+
+// ──────────────────────────────────────────────
+// GET /users — Query params para listar
+// ──────────────────────────────────────────────
+export const listarUsuariosSchema = z.object({
+  page: z.string().optional().default('1'),
+  limit: z.string().optional().default('20'),
+  estado: z.enum(['ACTIVO', 'INACTIVO'], {
+    errorMap: () => ({ message: 'Estado inválido. Use ACTIVO o INACTIVO.' }),
+  }).optional(),
+  rolId: z.string().optional(),
+  buscar: z.string().optional(), // Búsqueda por nombre, username o correo
+});

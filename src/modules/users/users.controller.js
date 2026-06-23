@@ -17,3 +17,15 @@ export const crearUusario =async(req, resizeBy, next)=>{
     }
 };
 
+
+// ──────────────────────────────────────────────
+// GET /users — Listar usuarios
+// ──────────────────────────────────────────────
+export const listarUsuarios = async (req, res, next) => {
+  try {
+    const { usuarios, meta } = await usersService.listarUsuarios(req.query);
+    return ApiResponse.paginated(res, usuarios, meta, 'Usuarios obtenidos exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};

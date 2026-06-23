@@ -82,3 +82,42 @@ export const createUsuario = async ({
     });
 };
 
+
+// ──────────────────────────────────────────────
+// PARA: GET /users — Listar usuarios
+// ──────────────────────────────────────────────
+
+export const countUsuarios = async (where) => {
+  return prisma.usuario.count({ where });
+};
+
+export const findUsuarios = async ({ where, skip, take }) => {
+  return prisma.usuario.findMany({
+    where,
+    skip,
+    take,
+    select: {
+      id: true,
+      nombreCompleto: true,
+      nombreUsuario: true,
+      correo: true,
+      estado: true,
+      requiereCambioClave: true,
+      ultimoAcceso: true,
+      intentosFallidos: true,
+      bloqueadoPermanente: true,
+      bloqueadoHasta: true,
+      createdAt: true,
+      creadoPorId: true,
+      rol: {
+        select: {
+          id: true,
+          nombre: true,
+          esAdmin: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+};
+

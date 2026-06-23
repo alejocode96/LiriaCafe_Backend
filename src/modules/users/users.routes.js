@@ -5,7 +5,9 @@ import { authenticate } from '../../middlewares/authenticate.js';
 import { authorize, requireAdmin } from '../../middlewares/authorize.js';
 import { validate } from '../../middlewares/validate.js';
 import { MODULO, ACCION } from '../../config/constants.js';
-import { crearUsuarioSchema } from './users.validations.js';
+import { crearUsuarioSchema,listarUsuariosSchema } from './users.validations.js';
+
+
 
 const router = Router();
 router.use(authenticate); // Todos los endpoints requieren autenticación
@@ -19,6 +21,14 @@ router.post(
 requireAdmin,  //Solo admin
 validate(crearUsuarioSchema), //Validar body
 usersController.crearUusario
+);
+
+// GET /api/v1/users — Listar usuarios
+router.get(
+  '/',
+  authorize(MODULO.USUARIOS, ACCION.VER),
+  validate(listarUsuariosSchema, 'query'),
+  usersController.listarUsuarios
 );
 
 export default router;
