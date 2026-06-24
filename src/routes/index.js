@@ -16,7 +16,7 @@ import inventoryRoutes from '../modules/inventory/inventory.routes.js';
 import productsRoutes from '../modules/products/products.routes.js';
 import cashRegisterRoutes from '../modules/cash-register/cash-register.routes.js';
 import salesRoutes from '../modules/sales/sales.routes.js';
-// import cashFlowRoutes from '../modules/cash-flow/cash-flow.routes.js';
+import cashFlowRoutes from '../modules/cash-flow/cash-flow.routes.js';
 // import reportsRoutes from '../modules/reports/reports.routes.js';
 
 
@@ -43,6 +43,6 @@ export const setupRoutes = (app) =>{
     app.use(`${apiPrefix}/products`, productsRoutes);
     app.use(`${apiPrefix}/cash-register`, cashRegisterRoutes);
     app.use(`${apiPrefix}/sales`, salesRoutes);
-    // app.use(`${apiPrefix}/cash-flow`, cashFlowRoutes);
+    app.use(`${apiPrefix}/cash-flow`, cashFlowRoutes);
     // app.use(`${apiPrefix}/reports`, reportsRoutes);
 };
