@@ -58,4 +58,11 @@ router.patch(
   categoriesController.desactivarCategoria
 );
 
+// AGREGAR en categories.routes.js
+router.patch(
+  '/:id/activate',
+  authorize(MODULO.CATEGORIAS, ACCION.EDITAR),
+  categoriesController.activarCategoria
+);
+
 export default router;

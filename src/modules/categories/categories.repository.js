@@ -125,3 +125,13 @@ export const desactivarCategoria = async (id) => {
     data: { estado: 'INACTIVO' },
   });
 };
+
+export const activarCategoria = async (id) => {
+  return prisma.categoria.update({
+    where: { id },
+    data: { estado: 'ACTIVO' },
+    include: {
+      _count: { select: { productos: true } },
+    },
+  });
+};

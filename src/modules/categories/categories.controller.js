@@ -58,3 +58,16 @@ export const desactivarCategoria = async (req, res, next) => {
     next(error);
   }
 };
+
+// AGREGAR al final de categories.controller.js
+export const activarCategoria = async (req, res, next) => {
+  try {
+    const categoria = await categoriesService.activarCategoria(
+      req.params.id,
+      req.user.id
+    );
+    return ApiResponse.success(res, categoria, 'Categoría activada exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};

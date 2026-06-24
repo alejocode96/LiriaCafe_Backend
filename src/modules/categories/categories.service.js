@@ -178,3 +178,30 @@ export const desactivarCategoria = async (id, usuarioId) => {
       : null,
   };
 };
+
+// AGREGAR al final de categories.service.js
+export const activarCategoria = async (id, usuarioId) => {
+  const categoria = await categoriesRepository.findCategoriaById(id);
+
+  if (!categoria) {
+    throw new NotFoundError(`No se encontró la categoría con ID: ${id}`);
+  }
+
+  if (categoria.estado === 'ACTIVO') {
+    throw new ConflictError('La categoría ya está activa.');
+  }
+
+  const categoriaActivada = await categoriesRepository.activarCategoria(id);
+
+  await registrarAuditoria({
+    accion: 'ACTIVAR_CATEGORIA',
+    usuarioId,
+    entidad: 'Categoria',
+    entidadId: id,
+    detalle: { nombre: categoria.nombre },
+  });
+
+  logger.info('Categoría activada', { categoriaId: id, usuarioId });
+
+  return categoriaActivada;
+};
