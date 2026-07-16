@@ -69,3 +69,12 @@ export const verUsuariosPorRol= async (req,res,next)=>{
         next(error);
     }
 }
+
+export const activarRol = async (req, res, next) => {
+  try {
+    const rol = await rolesService.activarRol(req.params.id, req.user.id);
+    return ApiResponse.success(res, rol, 'Rol activado exitosamente.');
+  } catch (error) {
+    next(error);
+  }
+};

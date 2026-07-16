@@ -78,19 +78,36 @@ export const getResumenVentas = async (where) => {
 };
 
 export const getTopProductos = async (where, limite = 10) => {
-  // Agrupar ítems de venta por productoId para obtener el ranking
+
+  // PASO 1: Obtener IDs de ventas completadas del período
+  // Evitamos el JOIN problemático separando las queries
+  const ventasDelPeriodo = await prisma.venta.findMany({
+    where: { ...where, estado: 'COMPLETADA' },
+    select: { id: true },
+  });
+
+  const ventaIds = ventasDelPeriodo.map((v) => v.id);
+
+  // Si no hay ventas en el período, retornar vacío
+  if (ventaIds.length === 0) return [];
+
+  // PASO 2: Agrupar ítems por productoId usando los IDs de ventas
+  // Ahora NO hay JOIN — solo filtramos por ventaId directamente
   const topItems = await prisma.itemVenta.groupBy({
     by: ['productoId'],
     where: {
-      venta: { ...where, estado: 'COMPLETADA' },
+      ventaId: { in: ventaIds },  // ← Sin JOIN, sin ambigüedad
     },
-    _sum: { cantidad: true, subtotal: true },
+    _sum: {
+      cantidad: true,
+      subtotal: true,
+    },
     _count: { id: true },
     orderBy: { _sum: { cantidad: 'desc' } },
     take: parseInt(limite, 10),
   });
 
-  // Enriquecer con nombres de productos
+  // PASO 3: Enriquecer con nombres de productos
   const productoIds = topItems.map((i) => i.productoId);
   const productos = await prisma.producto.findMany({
     where: { id: { in: productoIds } },
@@ -203,9 +220,22 @@ export const getVentasAnuladas = async (where) => {
  * aunque el costo del insumo haya cambiado posteriormente.
  */
 export const getRentabilidadPorProducto = async (where, limite = 20) => {
+
+  // PASO 1: IDs de ventas del período
+  const ventasDelPeriodo = await prisma.venta.findMany({
+    where: { ...where, estado: 'COMPLETADA' },
+    select: { id: true },
+  });
+
+  const ventaIds = ventasDelPeriodo.map((v) => v.id);
+  if (ventaIds.length === 0) return [];
+
+  // PASO 2: Agrupar sin JOIN
   const items = await prisma.itemVenta.groupBy({
     by: ['productoId'],
-    where: { venta: { ...where, estado: 'COMPLETADA' } },
+    where: {
+      ventaId: { in: ventaIds },  // ← Sin JOIN
+    },
     _sum: {
       subtotal: true,
       costoUnitarioSnapshot: true,
@@ -216,7 +246,7 @@ export const getRentabilidadPorProducto = async (where, limite = 20) => {
     take: parseInt(limite, 10),
   });
 
-  // Enriquecer con datos de productos
+  // PASO 3: Enriquecer con productos
   const productoIds = items.map((i) => i.productoId);
   const productos = await prisma.producto.findMany({
     where: { id: { in: productoIds } },
@@ -252,43 +282,134 @@ export const getRentabilidadPorProducto = async (where, limite = 20) => {
 };
 
 export const getRentabilidadPorVariante = async (where) => {
+
+  // PASO 1: Obtener IDs de ventas completadas del período
+  const ventasDelPeriodo = await prisma.venta.findMany({
+    where: {
+      ...where,
+      estado: 'COMPLETADA',
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  const ventaIds = ventasDelPeriodo.map((v) => v.id);
+
+  // Si no hay ventas en el período
+  if (ventaIds.length === 0) {
+    return [];
+  }
+
+  // PASO 2: Agrupar ítems SIN JOIN
   const items = await prisma.itemVenta.groupBy({
     by: ['productoId', 'varianteId'],
     where: {
-      venta: { ...where, estado: 'COMPLETADA' },
-      varianteId: { not: null },
+      ventaId: {
+        in: ventaIds,
+      },
+      varianteId: {
+        not: null,
+      },
     },
-    _sum: { subtotal: true, costoUnitarioSnapshot: true, cantidad: true },
-    orderBy: { _sum: { subtotal: 'desc' } },
+    _sum: {
+      subtotal: true,
+      costoUnitarioSnapshot: true,
+      cantidad: true,
+    },
+    orderBy: {
+      _sum: {
+        subtotal: 'desc',
+      },
+    },
     take: 50,
   });
 
-  const varianteIds = items.map((i) => i.varianteId).filter(Boolean);
+  // PASO 3: Obtener variantes
+  const varianteIds = [...new Set(items.map((i) => i.varianteId).filter(Boolean))];
+
   const variantes = await prisma.variante.findMany({
-    where: { id: { in: varianteIds } },
-    select: { id: true, nombre: true, precioDiferencial: true },
+    where: {
+      id: {
+        in: varianteIds,
+      },
+    },
+    select: {
+      id: true,
+      nombre: true,
+      precioDiferencial: true,
+    },
   });
-  const variantesMap = Object.fromEntries(variantes.map((v) => [v.id, v]));
 
+  const variantesMap = Object.fromEntries(
+    variantes.map((v) => [v.id, v])
+  );
+
+  // PASO 4: Obtener productos
   const productoIds = [...new Set(items.map((i) => i.productoId))];
-  const productos = await prisma.producto.findMany({
-    where: { id: { in: productoIds } },
-    select: { id: true, nombre: true },
-  });
-  const productosMap = Object.fromEntries(productos.map((p) => [p.id, p]));
 
+  const productos = await prisma.producto.findMany({
+    where: {
+      id: {
+        in: productoIds,
+      },
+    },
+    select: {
+      id: true,
+      nombre: true,
+      categoria: {
+        select: {
+          nombre: true,
+        },
+      },
+    },
+  });
+
+  const productosMap = Object.fromEntries(
+    productos.map((p) => [p.id, p])
+  );
+
+  // PASO 5: Construir respuesta
   return items.map((item) => {
+
     const ingreso = item._sum.subtotal ?? 0;
-    const costo = (item._sum.costoUnitarioSnapshot ?? 0) * (item._sum.cantidad ?? 0);
+
+    // El snapshot es el costo unitario histórico
+    const costoUnitario = item._sum.costoUnitarioSnapshot ?? 0;
+    const unidades = item._sum.cantidad ?? 0;
+    const costo = costoUnitario * unidades;
+
     const utilidad = ingreso - costo;
+
     return {
-      productoNombre: productosMap[item.productoId]?.nombre ?? 'Desconocido',
-      varianteNombre: variantesMap[item.varianteId]?.nombre ?? 'Sin variante',
-      unidades: item._sum.cantidad ?? 0,
+      productoId: item.productoId,
+      productoNombre:
+        productosMap[item.productoId]?.nombre ?? 'Desconocido',
+
+      categoria:
+        productosMap[item.productoId]?.categoria?.nombre ??
+        'Sin categoría',
+
+      varianteId: item.varianteId,
+
+      varianteNombre:
+        variantesMap[item.varianteId]?.nombre ??
+        'Sin variante',
+
+      unidadesVendidas: unidades,
+
       ingreso: Math.round(ingreso * 100) / 100,
+
       costo: Math.round(costo * 100) / 100,
+
       utilidad: Math.round(utilidad * 100) / 100,
-      margen: ingreso > 0 ? Math.round((utilidad / ingreso) * 10000) / 100 : 0,
+
+      margen:
+        ingreso > 0
+          ? Math.round((utilidad / ingreso) * 10000) / 100
+          : 0,
+
+      esRentable: utilidad > 0,
     };
   });
 };

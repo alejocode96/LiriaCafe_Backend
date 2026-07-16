@@ -33,20 +33,27 @@ app.use(helmet());
 // Solo las URLs en CORS_ORIGINS pueden hacer peticiones a la API.
 // Esto protege contra peticiones desde orígenes no autorizados.
 // ============================================================
+// app.use(cors({
+//     origin: (origin, callback)=>{
+//         //Permitir requests sin origin (ej postman, app móviles) en desarrollo
+//         if(!origin && env.IS_DEVELOPMENT){
+//             return callback(null, true);
+//         }
+//         if(env.CORS_ORIGINS.includes(origin)){
+//             return callback(null, true)
+//         }
+//         callback(new Error(`CORS: Origen de permitido -> ${origin}`));
+//     },
+//     credentials: true, //permite enviar cookies con las peticiones
+//     methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+//     allowedHeaders:['Content-Type','Authorization']
+// }));
+
 app.use(cors({
-    origin: (origin, callback)=>{
-        //Permitir requests sin origin (ej postman, app móviles) en desarrollo
-        if(!origin && env.IS_DEVELOPMENT){
-            return callback(null, true);
-        }
-        if(env.CORS_ORIGINS.includes(origin)){
-            return callback(null, true)
-        }
-        callback(new Error(`CORS: Origen de permitido -> ${origin}`));
-    },
-    credentials: true, //permite enviar cookies con las peticiones
-    methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-    allowedHeaders:['Content-Type','Authorization']
+  origin: true,   // true = refleja el origen de cada request, acepta todos
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // ============================================================

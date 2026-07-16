@@ -78,4 +78,11 @@ router.get(
     rolesController.verUsuariosPorRol
 );
 
+// PATCH /api/v1/roles/:id/activate
+router.patch(
+  '/:id/activate',
+  authorize(MODULO.ROLES, ACCION.EDITAR),
+  rolesController.activarRol
+);
+
 export default router;

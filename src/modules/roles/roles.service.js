@@ -237,3 +237,28 @@ export const verUsuariosPorRol = async (id, query)=>{
     };
 };
 
+export const activarRol = async (id, usuarioId) => {
+
+  const rol = await rolesRepository.findRolById(id);
+  if (!rol) {
+    throw new NotFoundError(`No se encontró el rol con ID: ${id}`);
+  }
+
+  if (rol.estado === 'ACTIVO') {
+    throw new ConflictError('El rol ya está activo.');
+  }
+
+  const rolActivado = await rolesRepository.activarRol(id);
+
+  await registrarAuditoria({
+    accion: 'ACTIVAR_ROL',
+    usuarioId,
+    entidad: 'Rol',
+    entidadId: id,
+    detalle: { nombre: rol.nombre },
+  });
+
+  logger.info('Rol activado', { rolId: id, nombre: rol.nombre, usuarioId });
+
+  return rolActivado;
+};

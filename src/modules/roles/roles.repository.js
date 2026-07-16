@@ -203,6 +203,14 @@ export const findUsuariosByRol = async ({ rolId, skip, take }) => {
   });
 };
 
+export const activarRol = async (id) => {
+  return prisma.rol.update({
+    where: { id },
+    data: { estado: 'ACTIVO' },
+    include: { permisos: true },
+  });
+};
+
 export const countUsuariosByRol=async(rolId)=>{
     return prisma.usuario.count({where:{rolId}});
 };
